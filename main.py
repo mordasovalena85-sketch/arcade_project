@@ -23,7 +23,7 @@ class Side(enum.Enum):
 
 
 class Hero(arcade.Sprite):
-    def __init__(self, x, y, speed, color=arcade.color.SKY_BLUE):
+    def __init__(self, x, y, speed):
         super().__init__()
         self.center_x = x
         self.center_y = y
@@ -40,7 +40,6 @@ class Hero(arcade.Sprite):
         self.animation_counter = 0
         self.cur_texture_index = 0
         self.speed = speed
-        self.color = color
         self.dx = 0
         self.dy = 0
 
