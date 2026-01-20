@@ -1,25 +1,55 @@
 import arcade
 import math
 import enum
+import time
 
 
-# ---------- Окно и мир ----------
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 600
 SCREEN_TITLE = "Maincraft"
 TILE_SCALING = 0.2
 
-# ---------- Камера ----------
 CAMERA_LERP = 0.12
 DEAD_ZONE_W = int(SCREEN_WIDTH * 0.35)
 DEAD_ZONE_H = int(SCREEN_HEIGHT * 0.45)
 
 GRAVITY = 0.8
 
-
 class Side(enum.Enum):
     LEFT = 0
     RIGHT = 1
+
+
+
+
+class Crack(arcade.Sprite):
+    def __init__(self, x, y, speed):
+        super().__init__()
+        self.center_x = x
+        self.center_y = y
+        self.texture_idle = arcade.load_texture(
+            "cracks/crack_6.png")
+        self.texture = self.texture_idle
+        self.cracking_animation = []
+        for i in range(5, 0, -1):
+            self.cracking_animation.append(
+                arcade.load_texture(f"cracks/crack_{i}.png"))
+        self.texture_change_time = 0
+        self.texture_change_delay = speed
+        self.current_texture = 0
+        self.scale = 0.032
+        self.is_breaking_block = True
+
+
+    def update_animation(self, delta_time: float = 1 / 60):
+        self.texture_change_time += delta_time
+        if self.is_breaking_block:
+            if self.texture_change_time >= self.texture_change_delay:
+                self.texture_change_time = 0
+                self.current_texture += 1
+                if self.current_texture == len(self.cracking_animation) - 1:
+                    self.is_breaking_block = False
+                self.texture = self.cracking_animation[self.current_texture]
 
 
 class Hero(arcade.Sprite):
@@ -42,6 +72,7 @@ class Hero(arcade.Sprite):
         self.speed = speed
         self.dx = 0
         self.dy = 0
+        self.mining_target = None
 
     def update(self, delta_time):
         current_speed = self.speed
@@ -82,14 +113,64 @@ class GridGame(arcade.Window):
         # Игрок
         self.player = None
 
+
         # Границы мира (по карте)
-        self.world_width = SCREEN_WIDTH
-        self.world_height = SCREEN_HEIGHT
+        self.world_width = None
+        self.world_height = None
 
         self.is_jumping = False
         self.can_jump = False
 
+
+        # Ссылки на спрайт-листы
+        self.earth_list = None
+        self.stone_list = None
+        self.coal_list = None
+        self.iron_list = None
+        self.gold_list = None
+        self.diamonds_list = None
+        self.wood_list = None
+        self.flowers_list = None
+        self.foliage_list = None
+        self.collisions_list = None
+        self.player_list = None
+        self.first_blocks_hit_list = arcade.SpriteList()
+
+        self.all_blocks = arcade.SpriteList()
+
+        self.is_breaking_block = False
+        self.block_is_broken = False
+
+        self.hold_duration = 10
+
+
     def setup(self):
+
+        # 2. СОЗДАЕМ И СОХРАНЯЕМ ВСЕ СПРАЙТ-ЛИСТЫ
+        self.create_sprite_lists()
+
+        # 3. СОЗДАЕМ ИГРОКА
+        self.player = Hero(200, 700, 200)
+        self.player.scale = 0.4
+        self.player_list.append(self.player)
+
+
+        # Уточняем размеры мира по карте
+        self.world_width = int(self.tile_map.width * self.tile_map.tile_width * TILE_SCALING)
+        self.world_height = int(self.tile_map.height * self.tile_map.tile_height * TILE_SCALING)
+
+
+        # Физический движок
+        self.physics_engine = arcade.PhysicsEnginePlatformer(
+            self.player, self.collisions_list,
+            gravity_constant=GRAVITY
+        )
+
+        self.grass_sound = arcade.load_sound("music/grass.mp3")
+
+    def create_sprite_lists(self):
+        """Создание всех спрайт-листов"""
+        # Создаем каждый спрайт-лист отдельно
         # Загружаем уровень из TMX-файла
         self.tile_map = arcade.load_tilemap("test_map_maincraft.tmx", scaling=TILE_SCALING)
         self.earth_list = self.tile_map.sprite_lists["earth"]
@@ -102,22 +183,14 @@ class GridGame(arcade.Window):
         self.flowers_list = self.tile_map.sprite_lists["flowers"]
         self.foliage_list = self.tile_map.sprite_lists["foliage"]
         self.collisions_list = self.tile_map.sprite_lists["collisions"]
+        self.player_list = arcade.SpriteList()
+        self.cracks_list = arcade.SpriteList()
 
-        # Уточняем размеры мира по карте
-        self.world_width = int(self.tile_map.width * self.tile_map.tile_width * TILE_SCALING)
-        self.world_height = int(self.tile_map.height * self.tile_map.tile_height * TILE_SCALING)
-
-        # Делаем игрока
-        self.player = Hero(200, 700, 200)
-        self.player.scale = 0.4
-
-        self.player_list.append(self.player)
-
-        # Физический движок
-        self.physics_engine = arcade.PhysicsEnginePlatformer(
-            self.player, self.collisions_list,
-            gravity_constant=GRAVITY
-        )
+        self.all_blocks.extend(
+            [*self.earth_list, *self.stone_list, *self.coal_list,
+            *self.iron_list, *self.gold_list,
+            *self.collisions_list, *self.wood_list, *self.flowers_list, *self.foliage_list,
+            *self.diamonds_list])
 
     def on_draw(self):
         """Отрисовка экрана."""
@@ -134,23 +207,29 @@ class GridGame(arcade.Window):
         self.wood_list.draw()
         self.flowers_list.draw()
         self.foliage_list.draw()
+        self.cracks_list.draw()
 
         self.player_list.draw()
+
+
 
         # 2) GUI
         self.gui_camera.use()
 
-        arcade.draw_lrbt_rectangle_outline(
-            self.world_camera.position[0] - DEAD_ZONE_W // 2,
-            self.world_camera.position[0] + DEAD_ZONE_W // 2,
-            self.world_camera.position[1] - DEAD_ZONE_H // 2,
-            self.world_camera.position[1] + DEAD_ZONE_H // 2,
-            arcade.color.AMBER, 2
-        )
 
     def on_update(self, dt: float):
         self.player_list.update_animation(dt)
         self.player_list.update(dt)
+
+        if self.is_breaking_block:
+            release_time = time.time()
+            self.hold_duration = release_time - self.press_time
+            if self.hold_duration >= 2:
+                self.remove_blocks_and_cracks()
+            else:
+                for crack in self.cracks_list:
+                    crack.update_animation(dt)
+
 
         self.can_jump = self.physics_engine.can_jump()
 
@@ -158,49 +237,76 @@ class GridGame(arcade.Window):
             return
         self.physics_engine.update()
 
-        position = (
-            self.player.center_x,
-            self.player.center_y
-        )
+        cam_x, cam_y = self.world_camera.position
 
-        self.world_camera.position = arcade.math.lerp_2d(  # Изменяем позицию камеры
-            self.world_camera.position,
-            position,
-            CAMERA_LERP,  # Плавность следования камеры
-        )
+        # Не показываем «пустоту» за краями карты
+        half_w = self.world_camera.viewport_width / 2
+        half_h = self.world_camera.viewport_height / 2
+        target_x = max(half_w, min(self.world_width - half_w, self.player.center_x))
+        target_y = max(half_h, min(self.world_height - half_h, self.player.center_y))
 
-        # # Камера: мёртвая зона + плавное следование
-        # cam_x, cam_y = self.world_camera.position
-        # dz_left = cam_x - DEAD_ZONE_W // 2
-        # dz_right = cam_x + DEAD_ZONE_W // 2
-        # dz_bottom = cam_y - DEAD_ZONE_H // 2
-        # dz_top = cam_y + DEAD_ZONE_H // 2
-        #
-        # px, py = self.player.center_x, self.player.center_y
-        # target_x, target_y = cam_x, cam_y
-        #
-        # if px < dz_left:
-        #     target_x = px + DEAD_ZONE_W // 2
-        # elif px > dz_right:
-        #     target_x = px - DEAD_ZONE_W // 2
-        # if py < dz_bottom:
-        #     target_y = py + DEAD_ZONE_H // 2
-        # elif py > dz_top:
-        #     target_y = py - DEAD_ZONE_H // 2
-        #
-        # # Не показываем «пустоту» за краями карты
-        # half_w = self.world_camera.viewport_width / 2
-        # half_h = self.world_camera.viewport_height / 2
-        # target_x = max(half_w, min(self.world_width - half_w, target_x))
-        # target_y = max(half_h, min(self.world_height - half_h, target_y))
-        #
-        # # Плавно к цели, аналог arcade.math.lerp_2d, но руками
-        # smooth_x = (1 - CAMERA_LERP) * cam_x + CAMERA_LERP * target_x
-        # smooth_y = (1 - CAMERA_LERP) * cam_y + CAMERA_LERP * target_y
-        # self.cam_target = (smooth_x, smooth_y)
-        #
-        #
-        # self.world_camera.position = (self.cam_target[0], self.cam_target[1])
+        # Плавно к цели, аналог arcade.math.lerp_2d, но руками
+        smooth_x = (1 - CAMERA_LERP) * cam_x + CAMERA_LERP * target_x
+        smooth_y = (1 - CAMERA_LERP) * cam_y + CAMERA_LERP * target_y
+        self.cam_target = (smooth_x, smooth_y)
+
+
+        self.world_camera.position = (smooth_x, smooth_y)
+
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        """Обработка нажатия мыши"""
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
+            if (self.player.center_x - 100 <= x <= self.player.center_x + 100 and
+                self.player.center_y - 100 <= y <= self.player.center_y + 100):
+                self.first_blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)
+
+                for block in self.first_blocks_hit_list:
+                    # Определяем, из какого списка спрайт
+                    if block in self.earth_list:
+                        print("Земля")
+                        arcade.play_sound(self.grass_sound)
+                    elif block in self.stone_list:
+                        print("Камень")
+                    elif block in self.wood_list:
+                         print("Дерево")
+                    crack = Crack(block.center_x, block.center_y, 0.05)
+                    self.is_breaking_block = True
+                    self.cracks_list.append(crack)
+                    self.press_time = time.time()
+
+    def on_mouse_motion(self, x, y, dx, dy):
+        if  self.is_breaking_block:
+            x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
+            blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)
+            for block in blocks_hit_list:
+                if block not in self.first_blocks_hit_list:
+                    release_time = time.time()
+                    self.hold_duration = release_time - self.press_time
+                    if self.hold_duration >= 2:
+                        self.remove_blocks_and_cracks()
+                    else:
+                        for crack in self.cracks_list:
+                            crack.remove_from_sprite_lists()
+
+    def on_mouse_release(self, x, y, button, modifiers):
+        release_time = time.time()
+        self.hold_duration = release_time - self.press_time
+        if self.hold_duration >= 2:
+            self.remove_blocks_and_cracks()
+        else:
+            for crack in self.cracks_list:
+                crack.remove_from_sprite_lists()
+
+    def remove_blocks_and_cracks(self):
+        self.is_breaking_block = False
+        self.hold_duration = 10
+        for crack in self.cracks_list:
+            crack.remove_from_sprite_lists()
+        for block in self.first_blocks_hit_list:
+            block.remove_from_sprite_lists()
+
 
     def on_key_press(self, key, modifiers):
         if key in (arcade.key.W, arcade.key.UP):
