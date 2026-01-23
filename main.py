@@ -2,7 +2,7 @@ import arcade
 import math
 import enum
 import time
-
+import csv
 
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 600
@@ -15,11 +15,22 @@ DEAD_ZONE_H = int(SCREEN_HEIGHT * 0.45)
 
 GRAVITY = 0.8
 
+BLOCKS_DATA = {
+    'earth': [0.8, 'grass', 16],
+    'stone': [4, 'stone', 8],
+    'coal': [6, 'stone', 3],
+'iron': [12, 'stone', 1],
+    'gold': [18, 'stone', 0.5],
+'diamonds': [25, 'stone', 0.2],
+    'wood': [3, 'wood', 10],
+'flowers': [0.5, 'grass', 21],
+    'foliage': [0.2, 'grass2', 25],
+}
+
+
 class Side(enum.Enum):
     LEFT = 0
     RIGHT = 1
-
-
 
 
 class Crack(arcade.Sprite):
@@ -39,7 +50,6 @@ class Crack(arcade.Sprite):
         self.current_texture = 0
         self.scale = 0.032
         self.is_breaking_block = True
-
 
     def update_animation(self, delta_time: float = 1 / 60):
         self.texture_change_time += delta_time
@@ -81,7 +91,6 @@ class Hero(arcade.Sprite):
         self.center_x += self.dx * current_speed * delta_time
         self.center_y += self.dy * current_speed * delta_time
 
-
     def update_animation(self, delta_time: float = 1 / 60):
         self.animation_counter += delta_time
         if self.animation_counter >= self.animation_update_speed:
@@ -113,14 +122,12 @@ class GridGame(arcade.Window):
         # Игрок
         self.player = None
 
-
         # Границы мира (по карте)
         self.world_width = None
         self.world_height = None
 
         self.is_jumping = False
         self.can_jump = False
-
 
         # Ссылки на спрайт-листы
         self.earth_list = None
@@ -139,10 +146,10 @@ class GridGame(arcade.Window):
         self.all_blocks = arcade.SpriteList()
 
         self.is_breaking_block = False
-        self.block_is_broken = False
 
         self.hold_duration = 10
-
+        self.time_digging = 1
+        self.speed_animation_digging = 16
 
     def setup(self):
 
@@ -154,11 +161,9 @@ class GridGame(arcade.Window):
         self.player.scale = 0.4
         self.player_list.append(self.player)
 
-
         # Уточняем размеры мира по карте
         self.world_width = int(self.tile_map.width * self.tile_map.tile_width * TILE_SCALING)
         self.world_height = int(self.tile_map.height * self.tile_map.tile_height * TILE_SCALING)
-
 
         # Физический движок
         self.physics_engine = arcade.PhysicsEnginePlatformer(
@@ -167,6 +172,9 @@ class GridGame(arcade.Window):
         )
 
         self.grass_sound = arcade.load_sound("music/grass.mp3")
+        self.grass2_sound = arcade.load_sound("music/grass2.mp3")
+        self.wood_sound = arcade.load_sound("music/wood.mp3")
+        self.stone_sound = arcade.load_sound("music/stone.mp3")
 
     def create_sprite_lists(self):
         """Создание всех спрайт-листов"""
@@ -188,9 +196,13 @@ class GridGame(arcade.Window):
 
         self.all_blocks.extend(
             [*self.earth_list, *self.stone_list, *self.coal_list,
-            *self.iron_list, *self.gold_list,
-            *self.collisions_list, *self.wood_list, *self.flowers_list, *self.foliage_list,
-            *self.diamonds_list])
+             *self.iron_list, *self.gold_list,
+             *self.collisions_list, *self.wood_list, *self.flowers_list, *self.foliage_list,
+             *self.diamonds_list])
+
+        self.name_blocks = ['self.earth_list', 'self.stone_list', 'self.coal_list', 'self.iron_list',
+                            'self.gold_list', 'self.diamonds_list', 'self.wood_list',
+                            'self.flowers_list', 'self.foliage_list']
 
     def on_draw(self):
         """Отрисовка экрана."""
@@ -211,11 +223,8 @@ class GridGame(arcade.Window):
 
         self.player_list.draw()
 
-
-
         # 2) GUI
         self.gui_camera.use()
-
 
     def on_update(self, dt: float):
         self.player_list.update_animation(dt)
@@ -224,12 +233,14 @@ class GridGame(arcade.Window):
         if self.is_breaking_block:
             release_time = time.time()
             self.hold_duration = release_time - self.press_time
-            if self.hold_duration >= 2:
+            if self.hold_duration > self.time_digging:
                 self.remove_blocks_and_cracks()
             else:
                 for crack in self.cracks_list:
                     crack.update_animation(dt)
-
+        else:
+            for crack in self.cracks_list:
+                crack.remove_from_sprite_lists()
 
         self.can_jump = self.physics_engine.can_jump()
 
@@ -250,63 +261,60 @@ class GridGame(arcade.Window):
         smooth_y = (1 - CAMERA_LERP) * cam_y + CAMERA_LERP * target_y
         self.cam_target = (smooth_x, smooth_y)
 
-
         self.world_camera.position = (smooth_x, smooth_y)
-
 
     def on_mouse_press(self, x, y, button, modifiers):
         """Обработка нажатия мыши"""
         if button == arcade.MOUSE_BUTTON_LEFT:
             x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
-            if (self.player.center_x - 100 <= x <= self.player.center_x + 100 and
-                self.player.center_y - 100 <= y <= self.player.center_y + 100):
-                self.first_blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)
+            if (self.player.center_x - 50 <= x <= self.player.center_x + 50 and
+                    self.player.center_y - 50 <= y <= self.player.center_y + 50):
+                self.first_blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)[:2]
 
                 for block in self.first_blocks_hit_list:
-                    # Определяем, из какого списка спрайт
-                    if block in self.earth_list:
-                        print("Земля")
-                        arcade.play_sound(self.grass_sound)
-                    elif block in self.stone_list:
-                        print("Камень")
-                    elif block in self.wood_list:
-                         print("Дерево")
-                    crack = Crack(block.center_x, block.center_y, 0.05)
-                    self.is_breaking_block = True
-                    self.cracks_list.append(crack)
-                    self.press_time = time.time()
+                    for name in self.name_blocks:
+                        if block in eval(name):
+                            name = name[5:-5]
+                            music = BLOCKS_DATA[name][1]
+                            self.sound_player = arcade.play_sound(
+                                eval(f'self.{music}_sound'),
+                                loop=True)
+                            self.time_digging = BLOCKS_DATA[name][0]
+                            speed_animation_digging = BLOCKS_DATA[name][2]
+
+                            crack = Crack(block.center_x, block.center_y,
+                                          self.time_digging / speed_animation_digging)
+                            self.is_breaking_block = True
+                            self.cracks_list.append(crack)
+                            self.press_time = time.time()
 
     def on_mouse_motion(self, x, y, dx, dy):
-        if  self.is_breaking_block:
+        if self.is_breaking_block:
             x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
             blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)
             for block in blocks_hit_list:
                 if block not in self.first_blocks_hit_list:
-                    release_time = time.time()
-                    self.hold_duration = release_time - self.press_time
-                    if self.hold_duration >= 2:
-                        self.remove_blocks_and_cracks()
-                    else:
-                        for crack in self.cracks_list:
-                            crack.remove_from_sprite_lists()
+                    self.remove_blocks_and_cracks()
 
     def on_mouse_release(self, x, y, button, modifiers):
-        release_time = time.time()
-        self.hold_duration = release_time - self.press_time
-        if self.hold_duration >= 2:
+        if self.is_breaking_block:
             self.remove_blocks_and_cracks()
-        else:
-            for crack in self.cracks_list:
-                crack.remove_from_sprite_lists()
 
     def remove_blocks_and_cracks(self):
+        release_time = time.time()
+        self.hold_duration = release_time - self.press_time
         self.is_breaking_block = False
-        self.hold_duration = 10
+        arcade.stop_sound(self.sound_player)
+
+        if self.hold_duration > self.time_digging:
+            self.hold_duration = 10
+            for crack in self.cracks_list:
+                crack.remove_from_sprite_lists()
+            for block in self.first_blocks_hit_list:
+                block.remove_from_sprite_lists()
+
         for crack in self.cracks_list:
             crack.remove_from_sprite_lists()
-        for block in self.first_blocks_hit_list:
-            block.remove_from_sprite_lists()
-
 
     def on_key_press(self, key, modifiers):
         if key in (arcade.key.W, arcade.key.UP):
