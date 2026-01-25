@@ -6,12 +6,10 @@ import csv
 
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 600
-SCREEN_TITLE = "Maincraft"
+SCREEN_TITLE = "Minecraft"
 TILE_SCALING = 0.2
 
 CAMERA_LERP = 0.12
-DEAD_ZONE_W = int(SCREEN_WIDTH * 0.35)
-DEAD_ZONE_H = int(SCREEN_HEIGHT * 0.45)
 
 GRAVITY = 0.8
 
@@ -19,18 +17,103 @@ BLOCKS_DATA = {
     'earth': [0.8, 'grass', 16],
     'stone': [4, 'stone', 8],
     'coal': [6, 'stone', 3],
-'iron': [12, 'stone', 1],
+    'iron': [12, 'stone', 1],
     'gold': [18, 'stone', 0.5],
-'diamonds': [25, 'stone', 0.2],
+    'diamonds': [25, 'stone', 0.2],
     'wood': [3, 'wood', 10],
-'flowers': [0.5, 'grass', 21],
+    'flowers': [0.5, 'grass', 21],
     'foliage': [0.2, 'grass2', 25],
 }
+
+# Размеры блоков
+BLOCK_SIZE = 40
+HOTBAR_SLOTS = 10
+HOTBAR_HEIGHT = 100
+
+# Цвета
+SELECTED_COLOR = (192, 192, 192, 255)
+HOTBAR_COLOR = (64, 64, 64, 100)
+SLOT_BG_COLOR = (64, 64, 64, 130)
+SLOT_BORDER_COLOR = (100, 100, 100, 255)
 
 
 class Side(enum.Enum):
     LEFT = 0
     RIGHT = 1
+
+
+class InventorySlot:
+    """Слот инвентаря"""
+
+    def __init__(self, x: float, y: float, size: int = BLOCK_SIZE):
+        self.x = x
+        self.y = y
+        self.size = size
+        self.block = None
+        self.selected = False
+        self.hovered = False
+
+    @property
+    def width(self):
+        return self.size + 10
+
+    @property
+    def height(self):
+        return self.size + 10
+
+    def draw(self):
+        """Отрисовка слота"""
+        # Фон слота
+        arcade.draw_lbwh_rectangle_filled(self.x, self.y, self.width, self.height, SLOT_BG_COLOR)
+
+        # Граница
+        border_color = SELECTED_COLOR if self.selected else SLOT_BORDER_COLOR
+        border_width = 5 if self.selected else 3
+        arcade.draw_lbwh_rectangle_outline(self.x, self.y, self.width, self.height, border_color, border_width)
+
+
+class InventorySystem:
+    """Система инвентаря"""
+
+    def __init__(self, window):
+        self.window = window
+        self.slots = []
+        self.selected_slot = 0
+        self.setup_hotbar()
+
+    def setup_hotbar(self):
+        """Настройка панели быстрого доступа"""
+        start_x = SCREEN_WIDTH // 2 - (HOTBAR_SLOTS * (BLOCK_SIZE + 17)) // 2
+        y = HOTBAR_HEIGHT // 2 - 23
+
+        for i in range(HOTBAR_SLOTS):
+            x = start_x + i * (BLOCK_SIZE + 17)
+            slot = InventorySlot(x, y, BLOCK_SIZE)
+            self.slots.append(slot)
+
+        # Выбираем первый слот
+        self.select_slot(0)
+
+    def select_slot(self, index: int):
+        """Выбор слота"""
+        if 0 <= index < len(self.slots):
+            self.slots[self.selected_slot].selected = False
+            self.selected_slot = index
+            self.slots[self.selected_slot].selected = True
+
+    def scroll_slot(self, direction: int):
+        """Прокрутка слотов колесиком мыши"""
+        new_index = (self.selected_slot + direction) % len(self.slots)
+        self.select_slot(new_index)
+
+    def draw(self):
+        """Отрисовка инвентаря"""
+
+        # Отрисовка слотов
+        for slot in self.slots:
+            slot.draw()
+
+        # Здесь будет отрисовка текстур блоков
 
 
 class Crack(arcade.Sprite):
@@ -39,19 +122,20 @@ class Crack(arcade.Sprite):
         self.center_x = x
         self.center_y = y
         self.texture_idle = arcade.load_texture(
-            "cracks/crack_6.png")
+            "cracks/crack_0.png")
         self.texture = self.texture_idle
         self.cracking_animation = []
-        for i in range(5, 0, -1):
+        for i in range(1, 9):
             self.cracking_animation.append(
                 arcade.load_texture(f"cracks/crack_{i}.png"))
         self.texture_change_time = 0
         self.texture_change_delay = speed
         self.current_texture = 0
-        self.scale = 0.032
+        self.scale = 2
         self.is_breaking_block = True
 
     def update_animation(self, delta_time: float = 1 / 60):
+        """Обновление анимации трещины"""
         self.texture_change_time += delta_time
         if self.is_breaking_block:
             if self.texture_change_time >= self.texture_change_delay:
@@ -147,16 +231,18 @@ class GridGame(arcade.Window):
 
         self.is_breaking_block = False
 
+        # Продолжительность удержания
         self.hold_duration = 10
-        self.time_digging = 1
-        self.speed_animation_digging = 16
+
+        # Система инвентаря
+        self.inventory = InventorySystem(self)
 
     def setup(self):
 
-        # 2. СОЗДАЕМ И СОХРАНЯЕМ ВСЕ СПРАЙТ-ЛИСТЫ
+        # СОЗДАЕМ И СОХРАНЯЕМ ВСЕ СПРАЙТ-ЛИСТЫ
         self.create_sprite_lists()
 
-        # 3. СОЗДАЕМ ИГРОКА
+        # СОЗДАЕМ ИГРОКА
         self.player = Hero(200, 700, 200)
         self.player.scale = 0.4
         self.player_list.append(self.player)
@@ -171,6 +257,7 @@ class GridGame(arcade.Window):
             gravity_constant=GRAVITY
         )
 
+        # Загрузка музыки
         self.grass_sound = arcade.load_sound("music/grass.mp3")
         self.grass2_sound = arcade.load_sound("music/grass2.mp3")
         self.wood_sound = arcade.load_sound("music/wood.mp3")
@@ -180,7 +267,8 @@ class GridGame(arcade.Window):
         """Создание всех спрайт-листов"""
         # Создаем каждый спрайт-лист отдельно
         # Загружаем уровень из TMX-файла
-        self.tile_map = arcade.load_tilemap("test_map_maincraft.tmx", scaling=TILE_SCALING)
+        self.tile_map = arcade.load_tilemap("test_map_minecraft"
+                                            ".tmx", scaling=TILE_SCALING)
         self.earth_list = self.tile_map.sprite_lists["earth"]
         self.stone_list = self.tile_map.sprite_lists["stone"]
         self.coal_list = self.tile_map.sprite_lists["coal"]
@@ -226,10 +314,15 @@ class GridGame(arcade.Window):
         # 2) GUI
         self.gui_camera.use()
 
+        # Отрисовка инвентаря
+        self.inventory.draw()
+
     def on_update(self, dt: float):
+        # Анимация игрока
         self.player_list.update_animation(dt)
         self.player_list.update(dt)
 
+        # Обновление трещины
         if self.is_breaking_block:
             release_time = time.time()
             self.hold_duration = release_time - self.press_time
@@ -248,6 +341,7 @@ class GridGame(arcade.Window):
             return
         self.physics_engine.update()
 
+        # Движение камеры
         cam_x, cam_y = self.world_camera.position
 
         # Не показываем «пустоту» за краями карты
@@ -256,7 +350,7 @@ class GridGame(arcade.Window):
         target_x = max(half_w, min(self.world_width - half_w, self.player.center_x))
         target_y = max(half_h, min(self.world_height - half_h, self.player.center_y))
 
-        # Плавно к цели, аналог arcade.math.lerp_2d, но руками
+        # Плавное перемещение
         smooth_x = (1 - CAMERA_LERP) * cam_x + CAMERA_LERP * target_x
         smooth_y = (1 - CAMERA_LERP) * cam_y + CAMERA_LERP * target_y
         self.cam_target = (smooth_x, smooth_y)
@@ -266,13 +360,17 @@ class GridGame(arcade.Window):
     def on_mouse_press(self, x, y, button, modifiers):
         """Обработка нажатия мыши"""
         if button == arcade.MOUSE_BUTTON_LEFT:
+            # изменение координат с учётом движения камеры
             x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
+            # проверка на близость к игроку
             if (self.player.center_x - 50 <= x <= self.player.center_x + 50 and
                     self.player.center_y - 50 <= y <= self.player.center_y + 50):
+                # добавляем в список все нажатые блоки
                 self.first_blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)[:2]
 
                 for block in self.first_blocks_hit_list:
                     for name in self.name_blocks:
+                        # по имени находим информацию о блоке
                         if block in eval(name):
                             name = name[5:-5]
                             music = BLOCKS_DATA[name][1]
@@ -282,6 +380,7 @@ class GridGame(arcade.Window):
                             self.time_digging = BLOCKS_DATA[name][0]
                             speed_animation_digging = BLOCKS_DATA[name][2]
 
+                            # создаём трещину
                             crack = Crack(block.center_x, block.center_y,
                                           self.time_digging / speed_animation_digging)
                             self.is_breaking_block = True
@@ -292,6 +391,7 @@ class GridGame(arcade.Window):
         if self.is_breaking_block:
             x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
             blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)
+            # смотрим, не сместился ли курсор с блока
             for block in blocks_hit_list:
                 if block not in self.first_blocks_hit_list:
                     self.remove_blocks_and_cracks()
@@ -301,6 +401,8 @@ class GridGame(arcade.Window):
             self.remove_blocks_and_cracks()
 
     def remove_blocks_and_cracks(self):
+        """Останавливает копание блока.
+        Удаляет его и трещины, если прошло достаточно времени"""
         release_time = time.time()
         self.hold_duration = release_time - self.press_time
         self.is_breaking_block = False
@@ -312,16 +414,26 @@ class GridGame(arcade.Window):
                 crack.remove_from_sprite_lists()
             for block in self.first_blocks_hit_list:
                 block.remove_from_sprite_lists()
-
+        # удаляем только трещины, если прошло меньше нужного времени
         for crack in self.cracks_list:
             crack.remove_from_sprite_lists()
 
+    def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
+        """Обработка прокрутки колеса мыши"""
+        if scroll_y > 0:  # Прокрутка вверх
+            self.inventory.scroll_slot(-1)
+        elif scroll_y < 0:  # Прокрутка вниз
+            self.inventory.scroll_slot(1)
+
     def on_key_press(self, key, modifiers):
+
+        # прыжок
         if key in (arcade.key.W, arcade.key.UP):
             if self.can_jump:
                 self.player.dy = 4
                 self.is_jumping = True
 
+        # движение
         elif key in (arcade.key.A, arcade.key.LEFT):
             self.player.dx = -1
             self.player.is_walking = True

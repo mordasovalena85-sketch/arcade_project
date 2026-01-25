@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="100" height="50" tilewidth="160" tileheight="160" infinite="0" nextlayerid="18" nextobjectid="1">
- <tileset firstgid="1" source="test_tailes_main.tsx"/>
+ <tileset firstgid="1" source="test_tailes_minecraft.tsx"/>
  <layer id="7" name="earth" width="100" height="50">
   <data encoding="base64" compression="zlib">
    eJzt1MsOgyAQBVDr/390t4SUhzCIjeckk3ShOJeBHgcAAAAAAAAAALzPubuBlzuz+iS/uU+6/6W6eyb52ajVv8vvQG+t3oOZvkrrRNUqV7OuuC+lzDP9pCLy1c5i1HyiZjF7X6K+n66V9rBiHq35jFQtz2yWXpFnIu93NsOOyq1YsyT6fuYZIv73nlp51tl5zOzTVfm7u/dyJGdtFq3cLTP7MmL3vv7KMJrr6jut53rmGT2P2vqr3PmtUb1354m9v5l5AAAAAADA83wBchoClg==
