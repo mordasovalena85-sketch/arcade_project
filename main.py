@@ -1,10 +1,7 @@
-from codecs import xmlcharrefreplace_errors
-
 import arcade
 import math
 import enum
 import time
-import csv
 
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 600
@@ -252,6 +249,10 @@ class Hero(arcade.Sprite):
         self.speed = speed
         self.dx = 0
         self.dy = 0
+        self.mining_target = None
+        self.max_health = 100
+        self.health = self.max_health
+        self.is_alive = True
 
     def update(self, delta_time):
         current_speed = self.speed
@@ -324,15 +325,30 @@ class GridGame(arcade.Window):
 
         self.sound_player = None
 
+        self.show_respawn_screen = False
+
+        self.respawn_button_x = SCREEN_WIDTH // 2
+        self.respawn_button_y = SCREEN_HEIGHT // 2 - 60
+        self.respawn_button_width = 200
+        self.respawn_button_height = 50
+
     def setup(self):
 
         # СОЗДАЕМ И СОХРАНЯЕМ ВСЕ СПРАЙТ-ЛИСТЫ
         self.create_sprite_lists()
 
         # СОЗДАЕМ ИГРОКА
-        self.player = Hero(200, 700, 200)
+        self.player_start_x = 200
+        self.player_start_y = 700
+        self.player = Hero(self.player_start_x, self.player_start_y, 200)
         self.player.scale = 0.4
         self.player_list.append(self.player)
+
+        # МОНСТР
+        monster = Monster(400, 900, speed=60, damage=10)
+        monster.scale = 0.4
+        monster.setup_physics(self.collisions_list)
+        self.monster_list.append(monster)
 
         # Уточняем размеры мира по карте
         self.world_width = int(self.tile_map.width * self.tile_map.tile_width * TILE_SCALING)
@@ -367,6 +383,7 @@ class GridGame(arcade.Window):
         self.collisions_list = self.tile_map.sprite_lists["collisions"]
         self.player_list = arcade.SpriteList()
         self.cracks_list = arcade.SpriteList()
+        self.monster_list = arcade.SpriteList()
 
         self.all_blocks.extend(
             [*self.earth_list, *self.stone_list, *self.coal_list,
@@ -398,12 +415,81 @@ class GridGame(arcade.Window):
         self.cracks_list.draw()
 
         self.player_list.draw()
+        self.monster_list.draw()
 
         # 2) GUI
         self.gui_camera.use()
 
+        if self.player and self.player.is_alive:
+            bar_width = 200
+            bar_height = 20
+
+            health_ratio = max(0, self.player.health / self.player.max_health)
+            health_width = int(bar_width * health_ratio)
+
+            x = 20
+            y = SCREEN_HEIGHT - 40
+
+            # Фон
+            bg_rect = arcade.rect.XYWH(x + bar_width // 2, y, bar_width, bar_height)
+            arcade.draw_rect_filled(bg_rect, arcade.color.DARK_RED)
+
+            # Текущее здоровье
+            hp_rect = arcade.rect.XYWH(x + health_width // 2, y, health_width, bar_height)
+            arcade.draw_rect_filled(hp_rect, arcade.color.GREEN)
+
+            # Рамка
+            frame_rect = arcade.rect.XYWH(x + bar_width // 2, y, bar_width, bar_height)
+            arcade.draw_rect_outline(frame_rect, arcade.color.BLACK, 2)
+
+        if self.show_respawn_screen:
+            self.draw_respawn_screen()
+            return
+
         # Отрисовка инвентаря
         self.inventory.draw()
+
+    def draw_respawn_screen(self):
+        """Рисуем экран смерти игрока с кнопкой перерождения"""
+        self.gui_camera.use()
+        # Текст смерти
+        arcade.draw_text(
+            "Вы умерли",
+            SCREEN_WIDTH // 2,
+            SCREEN_HEIGHT // 2 + 30,
+            arcade.color.RED,
+            font_size=40,
+            anchor_x="center"
+        )
+        arcade.draw_text(
+            "Нажмите кнопку, чтобы переродиться",
+            SCREEN_WIDTH // 2,
+            SCREEN_HEIGHT // 2,
+            arcade.color.WHITE,
+            font_size=20,
+            anchor_x="center"
+        )
+
+        # Кнопка
+        rect = arcade.rect.XYWH(
+            self.respawn_button_x,
+            self.respawn_button_y,
+            self.respawn_button_width,
+            self.respawn_button_height
+        )
+        arcade.draw_rect_filled(rect, arcade.color.BLUE_GRAY)
+        arcade.draw_rect_outline(rect, arcade.color.BLACK, border_width=2)
+
+        # Текст на кнопке
+        arcade.draw_text(
+            "Переродиться",
+            self.respawn_button_x,
+            self.respawn_button_y,
+            arcade.color.WHITE,
+            font_size=20,
+            anchor_x="center",
+            anchor_y="center"
+        )
 
     def on_update(self, dt: float):
         self.physics_engine.update()
@@ -428,6 +514,10 @@ class GridGame(arcade.Window):
         if not self.player:
             return
 
+        if self.player.health <= 0 and self.player.is_alive:
+            self.player.is_alive = False
+            self.player.remove_from_sprite_lists()
+
         # Движение камеры
         cam_x, cam_y = self.world_camera.position
 
@@ -444,8 +534,31 @@ class GridGame(arcade.Window):
 
         self.world_camera.position = (smooth_x, smooth_y)
 
+        self.monster_list.update_animation(dt)
+
+        for monster in self.monster_list:
+            monster.update(dt, self.player)
+
+        if self.show_respawn_screen:
+            return
+
+        if self.player.health <= 0 and self.player.is_alive:
+            self.player.is_alive = False
+            self.player.remove_from_sprite_lists()
+            self.show_respawn_screen = True
+
     def on_mouse_press(self, x, y, button, modifiers):
         """Обработка нажатия мыши"""
+        if self.show_respawn_screen:
+            left = self.respawn_button_x - self.respawn_button_width / 2
+            right = self.respawn_button_x + self.respawn_button_width / 2
+            bottom = self.respawn_button_y - self.respawn_button_height / 2
+            top = self.respawn_button_y + self.respawn_button_height / 2
+
+            if left <= x <= right and bottom <= y <= top:
+                self.respawn_player()
+            return
+
         # изменение координат с учётом движения камеры
         x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
         if button == arcade.MOUSE_BUTTON_LEFT:
@@ -539,6 +652,13 @@ class GridGame(arcade.Window):
             self.player.is_walking = True
             self.player.current_side = Side.RIGHT
 
+        if not self.player.is_alive:
+            return
+
+        if self.show_respawn_screen and key == arcade.key.R:
+            self.respawn_player()
+            return
+
     def on_key_release(self, key, modifiers):
         if key in (arcade.key.W, arcade.key.UP):
             self.player.dy = 0
@@ -550,6 +670,9 @@ class GridGame(arcade.Window):
             self.player.dx = 0
         if self.player.dx == 0 and self.player.dy == 0:
             self.player.is_walking = False
+
+        if not self.player.is_alive:
+            return
 
     def create_block_at_position(self, block_name, x, y):
         """Создает блок в указанной позиции"""
@@ -603,15 +726,6 @@ class GridGame(arcade.Window):
         elif block_name == 'stone':
             self.stone_list.append(block)
             self.collisions_list.append(collision_block)
-            self.collisions_list.append(collision_block)
-        # elif block_name == 'coal':
-        #     self.coal_list.append(block)
-        # elif block_name == 'iron':
-        #     self.iron_list.append(block)
-        # elif block_name == 'gold':
-        #     self.gold_list.append(block)
-        # elif block_name == 'diamonds':
-        #     self.diamonds_list.append(block)
         elif block_name == 'wood':
             self.wood_list.append(block)
             self.collisions_list.append(collision_block)
@@ -633,6 +747,96 @@ class GridGame(arcade.Window):
              *self.iron_list, *self.gold_list,
              *self.collisions_list, *self.wood_list, *self.flowers_list, *self.foliage_list,
              *self.diamonds_list])
+
+    def respawn_player(self):
+        self.player = Hero(self.player_start_x, self.player_start_y, 200)
+        self.player.scale = 0.4
+        self.player_list.append(self.player)
+        self.player.health = self.player.max_health
+        self.player.is_alive = True
+        self.show_respawn_screen = False
+
+        # Пересоздаём физику, чтобы после смерти не стать англелом
+        self.physics_engine = arcade.PhysicsEnginePlatformer(
+            self.player,
+            self.collisions_list,
+            gravity_constant=GRAVITY
+        )
+
+        self.world_camera.move_to((self.player.center_x, self.player.center_y), 0)
+
+
+class Monster(arcade.Sprite):
+    def __init__(self, x, y, speed, damage):
+        super().__init__()
+
+        self.center_x = x
+        self.center_y = y
+
+        self.texture_idle = arcade.load_texture(
+            ":resources:/images/animated_characters/zombie/zombie_idle.png"
+        )
+        self.texture = self.texture_idle
+
+        self.walk_animation = []
+        for i in range(8):
+            self.walk_animation.append(
+                arcade.load_texture(
+                    f":resources:/images/animated_characters/zombie/zombie_walk{i}.png"
+                )
+            )
+
+        self.animation_update_speed = 0.15
+        self.animation_counter = 0
+        self.cur_texture_index = 0
+
+        self.speed = speed
+        self.damage = damage
+
+        self.dx = 0
+        self.dy = 0
+
+        self.last_attack_time = 0
+        self.attack_delay = 1
+
+        self.physics_engine = None
+
+    def setup_physics(self, collision_list):
+        self.physics_engine = arcade.PhysicsEnginePlatformer(
+            self,
+            collision_list,
+            gravity_constant=GRAVITY
+        )
+
+    def update(self, delta_time, player):
+        # Ходим к игроку ТОЛЬКО по X
+        if player.center_x < self.center_x:
+            self.dx = -1
+        else:
+            self.dx = 1
+
+        self.center_x += self.dx * self.speed * delta_time
+
+        # Физика (гравитация, пол)
+        if self.physics_engine:
+            self.physics_engine.update()
+
+        # Урон при касании
+        if arcade.check_for_collision(self, player):
+            current_time = time.time()
+            if current_time - self.last_attack_time >= self.attack_delay:
+                if hasattr(player, "health"):
+                    player.health -= self.damage
+                self.last_attack_time = current_time
+
+    def update_animation(self, delta_time: float = 1 / 60):
+        self.animation_counter += delta_time
+        if self.animation_counter >= self.animation_update_speed:
+            self.cur_texture_index += 1
+            self.cur_texture_index %= len(self.walk_animation)
+            self.animation_counter = 0
+
+        self.texture = self.walk_animation[self.cur_texture_index]
 
 
 def main():
