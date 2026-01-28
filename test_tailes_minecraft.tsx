@@ -2,7 +2,7 @@
 <tileset version="1.10" tiledversion="1.11.2" name="test_tailes_main" tilewidth="160" tileheight="160" tilecount="30" columns="0">
  <grid orientation="orthogonal" width="1" height="1"/>
  <tile id="0">
-  <image source="minecraft_blocks/Dirt_29_JE2_BE2.webp" width="160" height="160"/>
+  <image source="minecraft_blocks/earth.webp" width="160" height="160"/>
  </tile>
  <tile id="1">
   <image source="minecraft_blocks/Grass_Block_29_JE2_BE2.webp" width="160" height="160"/>
@@ -44,7 +44,7 @@
   <image source="minecraft_blocks/Redstone_Ore_29_JE4_BE3.webp" width="160" height="160"/>
  </tile>
  <tile id="14">
-  <image source="minecraft_blocks/Oak_Log_29_JE4_BE2.webp" width="160" height="160"/>
+  <image source="minecraft_blocks/wood.webp" width="160" height="160"/>
  </tile>
  <tile id="15">
   <image source="minecraft_blocks/Oak_Log_29_JE5_BE2.webp" width="160" height="160"/>
@@ -56,7 +56,7 @@
   <image source="minecraft_blocks/Carved_Pumpkin_29_JE3_BE2.webp" width="160" height="160"/>
  </tile>
  <tile id="18">
-  <image source="minecraft_blocks/Poppy_29_JE3_BE2.webp" width="160" height="160"/>
+  <image source="minecraft_blocks/flowers.webp" width="160" height="160"/>
  </tile>
  <tile id="19">
   <image source="minecraft_blocks/Red_Mushroom_29_JE2_BE2.webp" width="160" height="160"/>
@@ -89,6 +89,6 @@
   <image source="minecraft_blocks/Border_29_EE1.webp" width="160" height="160"/>
  </tile>
  <tile id="29">
-  <image source="minecraft_blocks/Azalea_Leaves_29_JE1.webp" width="160" height="160"/>
+  <image source="minecraft_blocks/foliage.webp" width="160" height="160"/>
  </tile>
 </tileset>
