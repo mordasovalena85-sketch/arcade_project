@@ -1,3 +1,5 @@
+from tkinter.constants import RIGHT
+
 import arcade
 import math
 import enum
@@ -178,7 +180,7 @@ class InventorySystem:
                     (x + 32, y),  # Проверяем блок справа
                     game_window.all_blocks
                 ) or arcade.get_sprites_at_point(
-                    (x - 32, y),  # Проверяем блок слева
+                    (x - 32, y),      # Проверяем блок слева
                     game_window.all_blocks
                 ) or arcade.get_sprites_at_point(
                     (x, y + 32),  # Проверяем блок сверху
@@ -237,12 +239,12 @@ class Hero(arcade.Sprite):
         self.is_walking = False
         self.current_side = Side.RIGHT
         self.texture_idle = arcade.load_texture(
-            ":resources:/images/animated_characters/male_person/malePerson_idle.png")
+            "skin/resized-Stive_1.png")
         self.texture = self.texture_idle
         self.walk_animation = []
-        for i in range(0, 8):
+        for i in range(2, 8):
             self.walk_animation.append(
-                arcade.load_texture(f":resources:/images/animated_characters/male_person/malePerson_walk{i}.png"))
+                arcade.load_texture(f"skin/resized-Stive_{i}.png"))
         self.animation_update_speed = 0.15
         self.animation_counter = 0
         self.cur_texture_index = 0
@@ -253,6 +255,7 @@ class Hero(arcade.Sprite):
         self.max_health = 100
         self.health = self.max_health
         self.is_alive = True
+
 
     def update(self, delta_time):
         current_speed = self.speed
@@ -268,7 +271,7 @@ class Hero(arcade.Sprite):
             self.cur_texture_index %= len(self.walk_animation)
             self.animation_counter = 0
         if self.is_walking:
-            self.texture = self.walk_animation[self.cur_texture_index] if self.current_side == Side.RIGHT else \
+            self.texture = self.walk_animation[self.cur_texture_index] if self.current_side == Side.LEFT else \
                 self.walk_animation[self.cur_texture_index].flip_horizontally()
         else:
             self.texture = self.texture_idle
@@ -339,15 +342,15 @@ class GridGame(arcade.Window):
 
         # СОЗДАЕМ ИГРОКА
         self.player_start_x = 200
-        self.player_start_y = 700
+        self.player_start_y = 1400
         self.player = Hero(self.player_start_x, self.player_start_y, 200)
-        self.player.scale = 0.4
+        self.player.scale = 0.12
         self.player_list.append(self.player)
 
         # МОНСТР
-        monster = Monster(400, 900, speed=60, damage=10)
-        monster.scale = 0.4
+        monster = Monster(400, 700, speed=60, damage=10)
         monster.setup_physics(self.collisions_list)
+        monster.scale = 0.16
         self.monster_list.append(monster)
 
         # Уточняем размеры мира по карте
@@ -612,7 +615,8 @@ class GridGame(arcade.Window):
         release_time = time.time()
         self.hold_duration = release_time - self.press_time
         self.is_breaking_block = False
-        arcade.stop_sound(self.sound_player)
+        if self.sound_player:
+            arcade.stop_sound(self.sound_player)
         self.sound_player = None
 
         if self.hold_duration > self.time_digging:
@@ -750,7 +754,7 @@ class GridGame(arcade.Window):
 
     def respawn_player(self):
         self.player = Hero(self.player_start_x, self.player_start_y, 200)
-        self.player.scale = 0.4
+        self.player.scale = 0.12
         self.player_list.append(self.player)
         self.player.health = self.player.max_health
         self.player.is_alive = True
@@ -763,7 +767,7 @@ class GridGame(arcade.Window):
             gravity_constant=GRAVITY
         )
 
-        self.world_camera.move_to((self.player.center_x, self.player.center_y), 0)
+        # self.world_camera.move_to((self.player.center_x, self.player.center_y), 0)
 
 
 class Monster(arcade.Sprite):
@@ -774,15 +778,15 @@ class Monster(arcade.Sprite):
         self.center_y = y
 
         self.texture_idle = arcade.load_texture(
-            ":resources:/images/animated_characters/zombie/zombie_idle.png"
+            "skin/resized-zombie_1.png"
         )
         self.texture = self.texture_idle
 
         self.walk_animation = []
-        for i in range(8):
+        for i in range(2, 8):
             self.walk_animation.append(
                 arcade.load_texture(
-                    f":resources:/images/animated_characters/zombie/zombie_walk{i}.png"
+                    f"skin/resized-zombie_{i}.png"
                 )
             )
 
@@ -801,6 +805,9 @@ class Monster(arcade.Sprite):
 
         self.physics_engine = None
 
+        self.current_side = Side.RIGHT
+
+
     def setup_physics(self, collision_list):
         self.physics_engine = arcade.PhysicsEnginePlatformer(
             self,
@@ -809,13 +816,23 @@ class Monster(arcade.Sprite):
         )
 
     def update(self, delta_time, player):
-        # Ходим к игроку ТОЛЬКО по X
+        # Ходим к игроку по X
         if player.center_x < self.center_x:
             self.dx = -1
+            self.current_side = Side.RIGHT
         else:
             self.dx = 1
+            self.current_side = Side.LEFT
 
         self.center_x += self.dx * self.speed * delta_time
+
+        # Ходим к игроку по Y
+        if  player.center_y - self.center_y >= 32:
+            self.dy = 6
+        else:
+            self.dy = 0
+
+        self.center_y += self.dy * self.speed * delta_time
 
         # Физика (гравитация, пол)
         if self.physics_engine:
@@ -835,8 +852,11 @@ class Monster(arcade.Sprite):
             self.cur_texture_index += 1
             self.cur_texture_index %= len(self.walk_animation)
             self.animation_counter = 0
+        self.texture = self.walk_animation[self.cur_texture_index] if self.current_side == Side.LEFT else \
+            self.walk_animation[self.cur_texture_index].flip_horizontally()
 
-        self.texture = self.walk_animation[self.cur_texture_index]
+
+
 
 
 def main():
