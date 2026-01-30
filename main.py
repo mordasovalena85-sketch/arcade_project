@@ -8,7 +8,7 @@ import time
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 600
 SCREEN_TITLE = "Minecraft"
-TILE_SCALING = 0.2
+TILE_SCALING = 0.4
 
 CAMERA_LERP = 0.12
 
@@ -216,7 +216,7 @@ class Crack(arcade.Sprite):
         self.texture_change_time = 0
         self.texture_change_delay = speed
         self.current_texture = 0
-        self.scale = 2
+        self.scale = 4
         self.is_breaking_block = True
 
     def update_animation(self, delta_time: float = 1 / 60):
@@ -344,13 +344,13 @@ class GridGame(arcade.Window):
         self.player_start_x = 200
         self.player_start_y = 1400
         self.player = Hero(self.player_start_x, self.player_start_y, 200)
-        self.player.scale = 0.12
+        self.player.scale = 0.24
         self.player_list.append(self.player)
 
         # МОНСТР
         monster = Monster(400, 700, speed=60, damage=10)
         monster.setup_physics(self.collisions_list)
-        monster.scale = 0.16
+        monster.scale = 0.32
         self.monster_list.append(monster)
 
         # Уточняем размеры мира по карте
@@ -566,8 +566,8 @@ class GridGame(arcade.Window):
         x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
         if button == arcade.MOUSE_BUTTON_LEFT:
             # проверка на близость к игроку
-            if (self.player.center_x - 50 <= x <= self.player.center_x + 50 and
-                    self.player.center_y - 50 <= y <= self.player.center_y + 50):
+            if (self.player.center_x - 100 <= x <= self.player.center_x + 100 and
+                    self.player.center_y - 100 <= y <= self.player.center_y + 100):
                 # добавляем в список все нажатые блоки
                 self.first_blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)
 
@@ -592,8 +592,8 @@ class GridGame(arcade.Window):
                             self.cracks_list.append(crack)
                             self.press_time = time.time()
         if button == arcade.MOUSE_BUTTON_RIGHT:
-            if (self.player.center_x - 70 <= x <= self.player.center_x + 70 and
-                    self.player.center_y - 70 <= y <= self.player.center_y + 70):
+            if (self.player.center_x - 140 <= x <= self.player.center_x + 140 and
+                    self.player.center_y - 140 <= y <= self.player.center_y + 140):
                 self.inventory.remove_block(x, y, self)
 
     def on_mouse_motion(self, x, y, dx, dy):
@@ -644,7 +644,7 @@ class GridGame(arcade.Window):
         # прыжок
         if key in (arcade.key.W, arcade.key.UP):
             if self.physics_engine.can_jump():
-                self.player.dy = 4
+                self.player.dy = 6
 
         # движение
         elif key in (arcade.key.A, arcade.key.LEFT):
@@ -682,11 +682,11 @@ class GridGame(arcade.Window):
         """Создает блок в указанной позиции"""
         # Преобразуем координаты в координаты сетки
         actual_tile_size = self.tile_map.tile_width * TILE_SCALING
-        grid_x1 = round(x / actual_tile_size) * actual_tile_size + 16
-        grid_x2 = round(x / actual_tile_size) * actual_tile_size - 16
+        grid_x1 = round(x / actual_tile_size) * actual_tile_size + 32
+        grid_x2 = round(x / actual_tile_size) * actual_tile_size - 32
         grid_x = grid_x1 if abs(x - grid_x1) < abs(x - grid_x2) else grid_x2
-        grid_y1 = round(y / actual_tile_size) * actual_tile_size + 16
-        grid_y2 = round(y / actual_tile_size) * actual_tile_size - 16
+        grid_y1 = round(y / actual_tile_size) * actual_tile_size + 32
+        grid_y2 = round(y / actual_tile_size) * actual_tile_size - 32
         grid_y = grid_y1 if abs(y - grid_y1) < abs(y - grid_y2) else grid_y2
 
         # Проверяем, нет ли уже блока в этой позиции
@@ -754,7 +754,7 @@ class GridGame(arcade.Window):
 
     def respawn_player(self):
         self.player = Hero(self.player_start_x, self.player_start_y, 200)
-        self.player.scale = 0.12
+        self.player.scale = 0.24
         self.player_list.append(self.player)
         self.player.health = self.player.max_health
         self.player.is_alive = True
@@ -827,8 +827,8 @@ class Monster(arcade.Sprite):
         self.center_x += self.dx * self.speed * delta_time
 
         # Ходим к игроку по Y
-        if  player.center_y - self.center_y >= 32:
-            self.dy = 6
+        if  player.center_y - self.center_y >= 62:
+            self.dy = 12
         else:
             self.dy = 0
 
