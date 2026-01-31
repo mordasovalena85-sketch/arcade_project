@@ -12,23 +12,7 @@ CAMERA_LERP = 0.12
 
 GRAVITY = 1
 
-BLOCKS_DATA = {
-    'earth': [0.8, 'grass', 16],
-    'stone': [4, 'stone', 8],
-    'coal': [6, 'stone', 6.5],
-    'iron': [12, 'stone', 3],
-    'gold': [18, 'stone', 0.5],
-    'diamonds': [25, 'stone', 0.2],
-    'wood': [3, 'wood', 10],
-    'flowers': [0.5, 'grass', 21],
-    'foliage': [0.2, 'grass2', 25],
-    'wooden_planks': [3.5, 'wood', 9],
-    'oven': [4, 'stone', 8],
-    'oven2': [4, 'stone', 8],
-    'stone_bricks': [4, 'stone', 8],
-    'glass': [0.2, 'stone', 25],
-
-}
+from globals import BLOCKS_DATA, CRAFTING_RECIPES, WEAPON
 
 # Размеры блоков
 BLOCK_SIZE = 40
@@ -56,205 +40,6 @@ CRAFTING_WINDOW_HEIGHT = 350
 class Side(enum.Enum):
     LEFT = 0
     RIGHT = 1
-
-
-# Рецепты крафта (матрица 3x3)
-CRAFTING_RECIPES = {
-    # Верстак
-    "workbench": {
-        "pattern": [
-            ["wood", "wood", None],
-            ["wood", "wood", None],
-            [None, None, None]
-        ],
-        "result": "workbench",
-        "result_count": 1
-    },
-    # Деревянные доски
-    "wooden_planks": {
-        "pattern": [
-            ["wood", None, None],
-            [None, None, None],
-            [None, None, None]
-        ],
-        "result": "wooden_planks",
-        "result_count": 4
-    },
-    # Палки
-    "sticks": {
-        "pattern": [
-            [None, "wooden_planks", None],
-            [None, "wooden_planks", None],
-            [None, None, None]
-        ],
-        "result": "sticks",
-        "result_count": 4
-    },
-    # Деревянный меч
-    "wooden_sword": {
-        "pattern": [
-            [None, "wooden_planks", None],
-            [None, "wooden_planks", None],
-            [None, "sticks", None]
-        ],
-        "result": "wooden_sword",
-        "result_count": 1
-    },
-    # Каменный меч
-    "stone_sword": {
-        "pattern": [
-            [None, "stone", None],
-            [None, "stone", None],
-            [None, "sticks", None]
-        ],
-        "result": "stone_sword",
-        "result_count": 1
-    },
-    # Печка
-    "oven": {
-        "pattern": [
-            ["stone", "stone", "stone"],
-            ["stone", None, "stone"],
-            ["stone", "stone", "stone"]
-        ],
-        "result": "oven",
-        "result_count": 1
-    },
-    # Красивый камень
-    "stone_bricks": {
-        "pattern": [
-            ["stone", "stone", None],
-            ["stone", "stone", None],
-            [None, None, None]
-        ],
-        "result": "stone_bricks",
-        "result_count": 4
-    },
-    # Железный меч
-    "iron_sword": {
-        "pattern": [
-            [None, "iron_ingot", None],
-            [None, "iron_ingot", None],
-            [None, "sticks", None]
-        ],
-        "result": "iron_sword",
-        "result_count": 1
-    },
-    # Золотой меч
-    "golden_sword": {
-        "pattern": [
-            [None, "golden_ingot", None],
-            [None, "golden_ingot", None],
-            [None, "sticks", None]
-        ],
-        "result": "golden_sword",
-        "result_count": 1
-    },
-    # Алмазный меч
-    "diamond_sword": {
-        "pattern": [
-            [None, "diamonds", None],
-            [None, "diamonds", None],
-            [None, "sticks", None]
-        ],
-        "result": "diamond_sword",
-        "result_count": 1
-    },
-
-# Деревянный топор
-    "wooden_axe": {
-        "pattern": [
-            ['wooden_planks', "wooden_planks", None],
-            ['wooden_planks', "sticks", None],
-            [None, "sticks", None]
-        ],
-        "result": "wooden_axe",
-        "result_count": 1
-    },
-    # Каменный топор
-    "stone_axe": {
-        "pattern": [
-            ['stone', "stone", None],
-            ['stone', "sticks", None],
-            [None, "sticks", None]
-        ],
-        "result": "stone_axe",
-        "result_count": 1
-    },
-# Железный топор
-    "iron_axe": {
-        "pattern": [
-            ['iron_ingot', "iron_ingot", None],
-            ['iron_ingot', "sticks", None],
-            [None, "sticks", None]
-        ],
-        "result": "iron_axe",
-        "result_count": 1
-    },
-    # Золотой топор
-    "golden_axe": {
-        "pattern": [
-            ['golden_ingot', "golden_ingot", None],
-            ['golden_ingot', "sticks", None],
-            [None, "sticks", None]
-        ],
-        "result": "golden_axe",
-        "result_count": 1
-    },
-    # Алмазный топор
-    "diamond_axe": {
-        "pattern": [
-            ['diamonds', "diamonds", None],
-            ['diamonds', "sticks", None],
-            [None, "sticks", None]
-        ],
-        "result": "diamond_axe",
-        "result_count": 1
-    }
-}
-
-WEAPON = {
-    "wooden_sword": {
-        "damage": 1.5,
-        "object": ["monster"]
-    },
-    "stone_sword": {
-        "damage": 2,
-        "object": ["monster"]
-    },
-    "iron_sword": {
-        "damage": 2.5,
-        "object": ["monster"]
-    },
-    "golden_sword": {
-        "damage": 3,
-        "object":["monster"]
-    },
-"diamond_sword": {
-        "damage": 3.5,
-        "object": ["monster"]
-    },
-"wooden_axe": {
-        "damage": 1.5,
-        "object": ["wood", "wooden_planks"]
-    },
-"stone_axe": {
-        "damage": 2,
-        "object": ["wood", "wooden_planks"]
-    },
-"iron_axe": {
-        "damage": 2.5,
-        "object": ["wood", "wooden_planks"]
-    },
-"golden_axe": {
-        "damage": 3,
-        "object": ["wood", "wooden_planks"]
-    },
-"diamond_axe": {
-        "damage": 3.5,
-        "object": ["wood", "wooden_planks"]
-    }
-}
 
 
 class InventorySlot:
@@ -1100,6 +885,8 @@ class GridGame(arcade.Window):
                 crack.remove_from_sprite_lists()
             for block in self.first_blocks_hit_list:
                 if block not in self.sprite_lists['collisions']:
+                    if self.name in ['coal', 'iron', 'gold', 'diamonds']:
+                        self.name += '2'
                     self.inventory.add_block(self.name)
                 block.remove_from_sprite_lists()
 
