@@ -547,49 +547,32 @@ class GridGame(arcade.Window):
         arcade.set_background_color(arcade.color.SKY_BLUE)
 
         # Камеры: мир и GUI
-        self.world_camera = arcade.camera.Camera2D()  # Камера для игрового мира
-        self.gui_camera = arcade.camera.Camera2D()  # Камера для объектов интерфейса
+        self.world_camera = arcade.camera.Camera2D()
+        self.gui_camera = arcade.camera.Camera2D()
 
         # Данные уровня
         self.tile_map = None
-
-        # Слои с нашими спрайтами
         self.player_list = arcade.SpriteList()
-
-        # Игрок
         self.player = None
-
-        # Границы мира (по карте)
         self.world_width = None
         self.world_height = None
 
         self.is_jumping = False
         self.can_jump = False
-
         self.player_list = None
         self.first_blocks_hit_list = arcade.SpriteList()
-
         self.sprite_lists = {}
-
         self.all_blocks = arcade.SpriteList()
-
         self.is_breaking_block = False
-
-        # Продолжительность удержания
         self.hold_duration = 10
 
         # Система инвентаря
         self.inventory = InventorySystem(self)
 
+        # Экран респавна
+        self.respawn_screen = RespawnScreen(self)
+
         self.sound_player = None
-
-        self.show_respawn_screen = False
-
-        self.respawn_button_x = SCREEN_WIDTH // 2
-        self.respawn_button_y = SCREEN_HEIGHT // 2 - 60
-        self.respawn_button_width = 200
-        self.respawn_button_height = 50
-
     def setup(self):
         # СОЗДАЕМ И СОХРАНЯЕМ ВСЕ СПРАЙТ-ЛИСТЫ
         self.create_sprite_lists()
@@ -651,10 +634,8 @@ class GridGame(arcade.Window):
         for name, sprite_list in self.sprite_lists.items():
             if name != 'collisions':
                 sprite_list.draw()
-        # for sprite_list in self.sprite_lists.values():
-        #     sprite_list.draw()
-        self.cracks_list.draw()
 
+        self.cracks_list.draw()
         self.player_list.draw()
         self.monster_list.draw()
 
@@ -683,65 +664,24 @@ class GridGame(arcade.Window):
             frame_rect = arcade.rect.XYWH(x + bar_width // 2, y, bar_width, bar_height)
             arcade.draw_rect_outline(frame_rect, arcade.color.BLACK, 2)
 
-        if self.show_respawn_screen:
-            self.draw_respawn_screen()
-            return
+        # Отрисовка экрана респавна
+        self.respawn_screen.draw()
 
-        # Отрисовка инвентаря и окна крафта
-        self.inventory.draw()
+        # Отрисовка инвентаря и окна крафта (если игрок жив и не на экране респавна)
+        if self.player and self.player.is_alive and not self.respawn_screen.is_visible:
+            self.inventory.draw()
 
-        # Подсказка для открытия крафта
-        if not self.inventory.crafting_window.is_visible and not self.show_respawn_screen:
-            arcade.draw_text(
-                "Нажмите E для открытия крафта",
-                SCREEN_WIDTH // 2,
-                85,
-                arcade.color.LIGHT_GRAY,
-                16,
-                anchor_x="center"
-            )
+            # Подсказка для открытия крафта
+            if not self.inventory.crafting_window.is_visible:
+                arcade.draw_text(
+                    "Нажмите E для открытия крафта",
+                    SCREEN_WIDTH // 2,
+                    85,
+                    arcade.color.LIGHT_GRAY,
+                    16,
+                    anchor_x="center"
+                )
 
-    def draw_respawn_screen(self):
-        """Рисуем экран смерти игрока с кнопкой перерождения"""
-        self.gui_camera.use()
-        # Текст смерти
-        arcade.draw_text(
-            "Вы умерли",
-            SCREEN_WIDTH // 2,
-            SCREEN_HEIGHT // 2 + 30,
-            arcade.color.RED,
-            font_size=40,
-            anchor_x="center"
-        )
-        arcade.draw_text(
-            "Нажмите кнопку, чтобы переродиться",
-            SCREEN_WIDTH // 2,
-            SCREEN_HEIGHT // 2,
-            arcade.color.WHITE,
-            font_size=20,
-            anchor_x="center"
-        )
-
-        # Кнопка
-        rect = arcade.rect.XYWH(
-            self.respawn_button_x,
-            self.respawn_button_y,
-            self.respawn_button_width,
-            self.respawn_button_height
-        )
-        arcade.draw_rect_filled(rect, arcade.color.BLUE_GRAY)
-        arcade.draw_rect_outline(rect, arcade.color.BLACK, border_width=2)
-
-        # Текст на кнопке
-        arcade.draw_text(
-            "Переродиться",
-            self.respawn_button_x,
-            self.respawn_button_y,
-            arcade.color.WHITE,
-            font_size=20,
-            anchor_x="center",
-            anchor_y="center"
-        )
 
     def on_update(self, dt: float):
         self.physics_engine.update()
@@ -769,6 +709,11 @@ class GridGame(arcade.Window):
         if self.player.health <= 0 and self.player.is_alive:
             self.player.is_alive = False
             self.player.remove_from_sprite_lists()
+            self.respawn_screen.show()  # Показываем экран респавна
+
+        # Если виден экран респавна, не обновляем остальную игру
+        if self.respawn_screen.is_visible:
+            return
 
         # Движение камеры
         cam_x, cam_y = self.world_camera.position
@@ -782,7 +727,6 @@ class GridGame(arcade.Window):
         # Плавное перемещение
         smooth_x = (1 - CAMERA_LERP) * cam_x + CAMERA_LERP * target_x
         smooth_y = (1 - CAMERA_LERP) * cam_y + CAMERA_LERP * target_y
-        self.cam_target = (smooth_x, smooth_y)
 
         self.world_camera.position = (smooth_x, smooth_y)
 
@@ -791,24 +735,18 @@ class GridGame(arcade.Window):
         for monster in self.monster_list:
             monster.update(dt, self.player)
 
-        if self.show_respawn_screen:
-            return
-
-        if self.player.health <= 0 and self.player.is_alive:
-            self.player.is_alive = False
-            self.player.remove_from_sprite_lists()
-            self.show_respawn_screen = True
-
     def on_mouse_press(self, x, y, button, modifiers):
         """Обработка нажатия мыши"""
-        if self.show_respawn_screen:
-            left = self.respawn_button_x - self.respawn_button_width / 2
-            right = self.respawn_button_x + self.respawn_button_width / 2
-            bottom = self.respawn_button_y - self.respawn_button_height / 2
-            top = self.respawn_button_y + self.respawn_button_height / 2
+        # Обновляем позицию мыши для экрана респавна
+        self.respawn_screen.update_mouse_position(x, y)
 
-            if left <= x <= right and bottom <= y <= top:
-                self.respawn_player()
+        # Проверяем клик по кнопке респавна
+        if self.respawn_screen.check_button_click(x, y):
+            self.respawn_player()
+            return
+
+        # Обработка кликов в остальной игре только если игрок жив
+        if not self.player or not self.player.is_alive:
             return
 
         # Проверяем клики в окне крафта
@@ -857,6 +795,10 @@ class GridGame(arcade.Window):
                 self.inventory.remove_block(x, y, self)
 
     def on_mouse_motion(self, x, y, dx, dy):
+        """Обработка движения мыши"""
+        # Обновляем позицию мыши для экрана респавна
+        self.respawn_screen.update_mouse_position(x, y)
+
         if self.is_breaking_block:
             x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
             blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)
@@ -902,8 +844,17 @@ class GridGame(arcade.Window):
             self.inventory.scroll_slot(1)
 
     def on_key_press(self, key, modifiers):
+        # Обработка клавиш для экрана респавна
+        if self.respawn_screen.on_key_press(key, modifiers):
+            self.respawn_player()
+            return
+
         # Проверяем обработку клавиш инвентарем (крафт)
         if self.inventory.on_key_press(key, modifiers):
+            return
+
+        # Обработка игровых клавиш только если игрок жив
+        if not self.player or not self.player.is_alive:
             return
 
         # прыжок
@@ -920,13 +871,6 @@ class GridGame(arcade.Window):
             self.player.dx = 1
             self.player.is_walking = True
             self.player.current_side = Side.RIGHT
-
-        if not self.player.is_alive:
-            return
-
-        if self.show_respawn_screen and key == arcade.key.R:
-            self.respawn_player()
-            return
 
     def on_key_release(self, key, modifiers):
         if key in (arcade.key.W, arcade.key.UP):
@@ -1009,18 +953,173 @@ class GridGame(arcade.Window):
             self.all_blocks.extend(sprite_list)
 
     def respawn_player(self):
+        """Перерождение игрока"""
         self.player = Hero(self.player_start_x, self.player_start_y, 200)
         self.player.scale = 0.24
         self.player_list.append(self.player)
         self.player.health = self.player.max_health
         self.player.is_alive = True
-        self.show_respawn_screen = False
 
-        # Пересоздаём физику, чтобы после смерти не стать англелом
+        # Скрываем экран респавна
+        self.respawn_screen.hide()
+
+        # Пересоздаём физику
         self.physics_engine = arcade.PhysicsEnginePlatformer(
             self.player,
             self.sprite_lists['collisions'],
             gravity_constant=GRAVITY
+        )
+
+
+class RespawnScreen:
+    """Класс для экрана респавна в конце игры"""
+
+    def __init__(self, window):
+        self.window = window
+        self.is_visible = False
+
+        # Позиция и размеры кнопки респавна
+        self.respawn_button_x = SCREEN_WIDTH // 2
+        self.respawn_button_y = SCREEN_HEIGHT // 2 - 60
+        self.respawn_button_width = 200
+        self.respawn_button_height = 50
+
+        # Цвета
+        self.background_color = (0, 0, 0, 180)  # Полупрозрачный черный
+        self.title_color = arcade.color.RED
+        self.text_color = arcade.color.WHITE
+        self.button_color = arcade.color.BLUE_GRAY
+        self.button_hover_color = arcade.color.LIGHT_BLUE
+        self.button_border_color = arcade.color.BLACK
+
+        # Состояние кнопки
+        self.is_button_hovered = False
+
+    def show(self):
+        """Показать экран респавна"""
+        self.is_visible = True
+
+    def hide(self):
+        """Скрыть экран респавна"""
+        self.is_visible = False
+        self.is_button_hovered = False
+
+    def update_mouse_position(self, x, y):
+        """Обновить позицию мыши для определения наведения на кнопку"""
+        if not self.is_visible:
+            return
+
+        # Проверяем, находится ли курсор над кнопкой
+        left = self.respawn_button_x - self.respawn_button_width / 2
+        right = self.respawn_button_x + self.respawn_button_width / 2
+        bottom = self.respawn_button_y - self.respawn_button_height / 2
+        top = self.respawn_button_y + self.respawn_button_height / 2
+
+        self.is_button_hovered = (left <= x <= right and bottom <= y <= top)
+
+    def check_button_click(self, x, y):
+        """Проверить, была ли нажата кнопка респавна"""
+        if not self.is_visible:
+            return False
+
+        left = self.respawn_button_x - self.respawn_button_width / 2
+        right = self.respawn_button_x + self.respawn_button_width / 2
+        bottom = self.respawn_button_y - self.respawn_button_height / 2
+        top = self.respawn_button_y + self.respawn_button_height / 2
+
+        if left <= x <= right and bottom <= y <= top:
+            self.hide()
+            return True
+
+        return False
+
+    def on_key_press(self, key, modifiers):
+        """Обработка нажатий клавиш"""
+        if not self.is_visible:
+            return False
+
+        if key == arcade.key.R:
+            # Респавн по клавише R
+            self.hide()
+            return True
+
+        return False
+
+    def draw(self):
+        """Отрисовка экрана респавна"""
+        if not self.is_visible:
+            return
+
+        # Используем камеру GUI
+        self.window.gui_camera.use()
+
+        # Полупрозрачный фон
+        arcade.draw_lbwh_rectangle_filled(
+            0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
+            self.background_color
+        )
+
+        # Текст смерти
+        arcade.draw_text(
+            "Вы умерли",
+            SCREEN_WIDTH // 2,
+            SCREEN_HEIGHT // 2 + 30,
+            self.title_color,
+            font_size=40,
+            anchor_x="center",
+            bold=True
+        )
+
+        arcade.draw_text(
+            "Нажмите кнопку, чтобы переродиться",
+            SCREEN_WIDTH // 2,
+            SCREEN_HEIGHT // 2,
+            self.text_color,
+            font_size=20,
+            anchor_x="center"
+        )
+
+        # Определяем цвет кнопки (при наведении меняется)
+        button_color = self.button_hover_color if self.is_button_hovered else self.button_color
+
+        # Кнопка респавна
+        rect = arcade.rect.XYWH(
+            self.respawn_button_x,
+            self.respawn_button_y,
+            self.respawn_button_width,
+            self.respawn_button_height
+        )
+
+        # Фон кнопки
+        arcade.draw_rect_filled(rect, button_color)
+
+        # Рамка кнопки
+        arcade.draw_rect_outline(
+            rect,
+            self.button_border_color,
+            border_width=2
+        )
+
+        # Текст на кнопке
+        arcade.draw_text(
+            "Переродиться",
+            self.respawn_button_x,
+            self.respawn_button_y,
+            self.text_color,
+            font_size=20,
+            anchor_x="center",
+            anchor_y="center",
+            bold=True
+        )
+
+        # Подсказка про клавишу R
+        arcade.draw_text(
+            "Или нажмите клавишу R",
+            SCREEN_WIDTH // 2,
+            self.respawn_button_y - 70,
+            arcade.color.LIGHT_GRAY,
+            font_size=16,
+            anchor_x="center"
         )
 
 
