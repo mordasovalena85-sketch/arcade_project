@@ -20,22 +20,22 @@
   <image source="minecraft_blocks/Snow_29_JE2_BE2.webp" width="160" height="160"/>
  </tile>
  <tile id="6">
-  <image source="minecraft_blocks/Coal_Ore_29_JE5_BE4.webp" width="160" height="160"/>
+  <image source="minecraft_blocks/coal.webp" width="160" height="160"/>
  </tile>
  <tile id="7">
   <image source="minecraft_blocks/Copper_Ore_29_JE2_BE2.webp" width="160" height="160"/>
  </tile>
  <tile id="8">
-  <image source="minecraft_blocks/Diamond_Ore_29_JE5_BE5.webp" width="160" height="160"/>
+  <image source="minecraft_blocks/diamonds.webp" width="160" height="160"/>
  </tile>
  <tile id="9">
   <image source="minecraft_blocks/Emerald_Ore_29_JE4_BE3.webp" width="160" height="160"/>
  </tile>
  <tile id="10">
-  <image source="minecraft_blocks/Gold_Ore_29_JE7_BE4.webp" width="160" height="160"/>
+  <image source="minecraft_blocks/gold.webp" width="160" height="160"/>
  </tile>
  <tile id="11">
-  <image source="minecraft_blocks/Iron_Ore_29_JE6_BE4.webp" width="160" height="160"/>
+  <image source="minecraft_blocks/iron.webp" width="160" height="160"/>
  </tile>
  <tile id="12">
   <image source="minecraft_blocks/Lapis_Lazuli_Ore_29_JE4_BE4.webp" width="160" height="160"/>

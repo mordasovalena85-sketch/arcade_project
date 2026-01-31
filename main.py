@@ -1,4 +1,3 @@
-
 import arcade
 import math
 import enum
@@ -16,8 +15,8 @@ GRAVITY = 1
 BLOCKS_DATA = {
     'earth': [0.8, 'grass', 16],
     'stone': [4, 'stone', 8],
-    'coal': [6, 'stone', 6],
-    'iron': [12, 'stone', 1],
+    'coal': [6, 'stone', 6.5],
+    'iron': [12, 'stone', 3],
     'gold': [18, 'stone', 0.5],
     'diamonds': [25, 'stone', 0.2],
     'wood': [3, 'wood', 10],
@@ -160,6 +159,100 @@ CRAFTING_RECIPES = {
         ],
         "result": "diamond_sword",
         "result_count": 1
+    },
+
+# Деревянный топор
+    "wooden_axe": {
+        "pattern": [
+            ['wooden_planks', "wooden_planks", None],
+            ['wooden_planks', "sticks", None],
+            [None, "sticks", None]
+        ],
+        "result": "wooden_axe",
+        "result_count": 1
+    },
+    # Каменный топор
+    "stone_axe": {
+        "pattern": [
+            ['stone', "stone", None],
+            ['stone', "sticks", None],
+            [None, "sticks", None]
+        ],
+        "result": "stone_axe",
+        "result_count": 1
+    },
+# Железный топор
+    "iron_axe": {
+        "pattern": [
+            ['iron_ingot', "iron_ingot", None],
+            ['iron_ingot', "sticks", None],
+            [None, "sticks", None]
+        ],
+        "result": "iron_axe",
+        "result_count": 1
+    },
+    # Золотой топор
+    "golden_axe": {
+        "pattern": [
+            ['golden_ingot', "golden_ingot", None],
+            ['golden_ingot', "sticks", None],
+            [None, "sticks", None]
+        ],
+        "result": "golden_axe",
+        "result_count": 1
+    },
+    # Алмазный топор
+    "diamond_axe": {
+        "pattern": [
+            ['diamonds', "diamonds", None],
+            ['diamonds', "sticks", None],
+            [None, "sticks", None]
+        ],
+        "result": "diamond_axe",
+        "result_count": 1
+    }
+}
+
+WEAPON = {
+    "wooden_sword": {
+        "damage": 1.5,
+        "object": ["monster"]
+    },
+    "stone_sword": {
+        "damage": 2,
+        "object": ["monster"]
+    },
+    "iron_sword": {
+        "damage": 2.5,
+        "object": ["monster"]
+    },
+    "golden_sword": {
+        "damage": 3,
+        "object":["monster"]
+    },
+"diamond_sword": {
+        "damage": 3.5,
+        "object": ["monster"]
+    },
+"wooden_axe": {
+        "damage": 1.5,
+        "object": ["wood", "wooden_planks"]
+    },
+"stone_axe": {
+        "damage": 2,
+        "object": ["wood", "wooden_planks"]
+    },
+"iron_axe": {
+        "damage": 2.5,
+        "object": ["wood", "wooden_planks"]
+    },
+"golden_axe": {
+        "damage": 3,
+        "object": ["wood", "wooden_planks"]
+    },
+"diamond_axe": {
+        "damage": 3.5,
+        "object": ["wood", "wooden_planks"]
     }
 }
 
@@ -764,7 +857,6 @@ class GridGame(arcade.Window):
         for sprite_list in self.sprite_lists.values():
             self.all_blocks.extend(sprite_list)
 
-
     def on_draw(self):
         """Отрисовка экрана."""
         self.clear()
@@ -958,7 +1050,13 @@ class GridGame(arcade.Window):
                                 self.sound_player = arcade.play_sound(
                                     eval(f'self.{music}_sound'),
                                     loop=True)
-                            self.time_digging = BLOCKS_DATA[self.name][0]
+                            selected_block_name = self.inventory.get_selected_block()
+                            coef = 1
+                            if selected_block_name:
+                                if selected_block_name in WEAPON.keys():
+                                    if self.name in WEAPON[selected_block_name]['object']:
+                                        coef = WEAPON[selected_block_name]['damage']
+                            self.time_digging = BLOCKS_DATA[self.name][0] / coef
                             speed_animation_digging = BLOCKS_DATA[self.name][2]
 
                             # создаём трещину
@@ -1299,10 +1397,7 @@ class Monster(arcade.Sprite):
             self.walk_animation[self.cur_texture_index].flip_horizontally()
 
 
-
-
 def main():
-
     # Создаем и запускаем игру
     game = GridGame()
     game.setup()
