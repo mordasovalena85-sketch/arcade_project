@@ -1,4 +1,3 @@
-from tkinter.constants import RIGHT
 
 import arcade
 import math
@@ -23,7 +22,13 @@ BLOCKS_DATA = {
     'diamonds': [25, 'stone', 0.2],
     'wood': [3, 'wood', 10],
     'flowers': [0.5, 'grass', 21],
-    'foliage': [0.2, 'grass2', 25]
+    'foliage': [0.2, 'grass2', 25],
+    'wooden_planks': [3.5, 'wood', 9],
+    'oven': [4, 'stone', 8],
+    'oven2': [4, 'stone', 8],
+    'stone_bricks': [4, 'stone', 8],
+    'glass': [0.2, 'stone', 25],
+
 }
 
 # Размеры блоков
@@ -36,6 +41,17 @@ SELECTED_COLOR = (192, 192, 192, 255)
 HOTBAR_COLOR = (64, 64, 64, 100)
 SLOT_BG_COLOR = (64, 64, 64, 130)
 SLOT_BORDER_COLOR = (100, 100, 100, 255)
+CRAFTING_BG_COLOR = (40, 40, 40, 220)
+CRAFTING_SLOT_COLOR = (70, 70, 70, 200)
+CRAFTING_RESULT_COLOR = (80, 80, 100, 200)
+CRAFTING_TEXT_COLOR = (220, 220, 220, 255)
+
+# Константы крафта
+CRAFTING_GRID_SIZE = 3
+CRAFTING_SLOT_SIZE = 50
+CRAFTING_RESULT_SIZE = 60
+CRAFTING_WINDOW_WIDTH = 400
+CRAFTING_WINDOW_HEIGHT = 350
 
 
 class Side(enum.Enum):
@@ -43,10 +59,115 @@ class Side(enum.Enum):
     RIGHT = 1
 
 
+# Рецепты крафта (матрица 3x3)
+CRAFTING_RECIPES = {
+    # Верстак
+    "workbench": {
+        "pattern": [
+            ["wood", "wood", None],
+            ["wood", "wood", None],
+            [None, None, None]
+        ],
+        "result": "workbench",
+        "result_count": 1
+    },
+    # Деревянные доски
+    "wooden_planks": {
+        "pattern": [
+            ["wood", None, None],
+            [None, None, None],
+            [None, None, None]
+        ],
+        "result": "wooden_planks",
+        "result_count": 4
+    },
+    # Палки
+    "sticks": {
+        "pattern": [
+            [None, "wooden_planks", None],
+            [None, "wooden_planks", None],
+            [None, None, None]
+        ],
+        "result": "sticks",
+        "result_count": 4
+    },
+    # Деревянный меч
+    "wooden_sword": {
+        "pattern": [
+            [None, "wooden_planks", None],
+            [None, "wooden_planks", None],
+            [None, "sticks", None]
+        ],
+        "result": "wooden_sword",
+        "result_count": 1
+    },
+    # Каменный меч
+    "stone_sword": {
+        "pattern": [
+            [None, "stone", None],
+            [None, "stone", None],
+            [None, "sticks", None]
+        ],
+        "result": "stone_sword",
+        "result_count": 1
+    },
+    # Печка
+    "oven": {
+        "pattern": [
+            ["stone", "stone", "stone"],
+            ["stone", None, "stone"],
+            ["stone", "stone", "stone"]
+        ],
+        "result": "oven",
+        "result_count": 1
+    },
+    # Красивый камень
+    "stone_bricks": {
+        "pattern": [
+            ["stone", "stone", None],
+            ["stone", "stone", None],
+            [None, None, None]
+        ],
+        "result": "stone_bricks",
+        "result_count": 4
+    },
+    # Железный меч
+    "iron_sword": {
+        "pattern": [
+            [None, "iron_ingot", None],
+            [None, "iron_ingot", None],
+            [None, "sticks", None]
+        ],
+        "result": "iron_sword",
+        "result_count": 1
+    },
+    # Золотой меч
+    "golden_sword": {
+        "pattern": [
+            [None, "golden_ingot", None],
+            [None, "golden_ingot", None],
+            [None, "sticks", None]
+        ],
+        "result": "golden_sword",
+        "result_count": 1
+    },
+    # Алмазный меч
+    "diamond_sword": {
+        "pattern": [
+            [None, "diamonds", None],
+            [None, "diamonds", None],
+            [None, "sticks", None]
+        ],
+        "result": "diamond_sword",
+        "result_count": 1
+    }
+}
+
+
 class InventorySlot:
     """Слот инвентаря"""
 
-    def __init__(self, x: float, y: float, size: int = BLOCK_SIZE):
+    def __init__(self, x: float, y: float, size: int = BLOCK_SIZE, is_crafting_slot=False):
         self.x = x
         self.y = y
         self.size = size
@@ -55,6 +176,7 @@ class InventorySlot:
         self.count = 0
         self.width, self.height = self.size + 10, self.size + 10
         self.texture = None
+        self.is_crafting_slot = is_crafting_slot
 
         self.score_text = arcade.Text(
             text="0",
@@ -72,17 +194,21 @@ class InventorySlot:
         if self.block_name:
             texture_path = f'minecraft_blocks/{self.block_name}.webp'
             self.texture = arcade.load_texture(texture_path)
-
         else:
             self.texture = None
 
     def draw(self):
         """Отрисовка слота"""
         # Фон слота
-        arcade.draw_lbwh_rectangle_filled(self.x, self.y, self.width, self.height, SLOT_BG_COLOR)
+        slot_color = CRAFTING_SLOT_COLOR if self.is_crafting_slot else SLOT_BG_COLOR
+        arcade.draw_lbwh_rectangle_filled(self.x, self.y, self.width, self.height, slot_color)
 
         # Граница
-        border_color = SELECTED_COLOR if self.selected else SLOT_BORDER_COLOR
+        if self.is_crafting_slot:
+            border_color = arcade.color.YELLOW if self.selected else SLOT_BORDER_COLOR
+        else:
+            border_color = SELECTED_COLOR if self.selected else SLOT_BORDER_COLOR
+
         border_width = 5 if self.selected else 3
         arcade.draw_lbwh_rectangle_outline(self.x, self.y, self.width, self.height, border_color, border_width)
 
@@ -96,7 +222,261 @@ class InventorySlot:
                             block_size, block_size))
 
             # Счетчик
-            self.score_text.draw()
+            if self.count > 1 or self.is_crafting_slot:
+                self.score_text.draw()
+
+
+class CraftingWindow:
+    """Окно крафта"""
+
+    def __init__(self, inventory_system):
+        self.inventory = inventory_system
+        self.is_visible = False
+        self.grid_slots = []
+        self.result_slot = None
+        self.current_recipe = None
+        self.setup_crafting_slots()
+
+    def setup_crafting_slots(self):
+        """Настройка слотов крафта"""
+        # Позиция окна крафта
+        window_x = SCREEN_WIDTH // 2 - CRAFTING_WINDOW_WIDTH // 2
+        window_y = SCREEN_HEIGHT // 2 - CRAFTING_WINDOW_HEIGHT // 2
+
+        # Позиция сетки 3x3
+        grid_start_x = window_x + 50
+        grid_start_y = window_y + CRAFTING_WINDOW_HEIGHT - 150
+
+        # Создаем слоты для сетки крафта
+        for row in range(CRAFTING_GRID_SIZE):
+            for col in range(CRAFTING_GRID_SIZE):
+                x = grid_start_x + col * (CRAFTING_SLOT_SIZE + 10)
+                y = grid_start_y - row * (CRAFTING_SLOT_SIZE + 10)
+                slot = InventorySlot(x, y, CRAFTING_SLOT_SIZE, is_crafting_slot=True)
+                self.grid_slots.append(slot)
+
+        # Создаем слот для результата
+        result_x = window_x + CRAFTING_WINDOW_WIDTH - 100
+        result_y = window_y + CRAFTING_WINDOW_HEIGHT // 2 - 35
+        self.result_slot = InventorySlot(result_x, result_y, CRAFTING_RESULT_SIZE, is_crafting_slot=True)
+
+    def toggle_visibility(self):
+        """Переключение видимости окна крафта"""
+        self.is_visible = not self.is_visible
+        if not self.is_visible:
+            # При закрытии возвращаем предметы из сетки крафта в инвентарь
+            self.return_items_to_inventory()
+
+    def return_items_to_inventory(self):
+        """Возврат предметов из сетки крафта в инвентарь"""
+        for slot in self.grid_slots:
+            if slot.block_name and slot.count > 0:
+                for _ in range(slot.count):
+                    self.inventory.add_block(slot.block_name)
+                slot.block_name = None
+                slot.count = 0
+                slot.update_score()
+                slot.update_texture()
+
+        self.result_slot.block_name = None
+        self.result_slot.count = 0
+        self.result_slot.update_score()
+        self.result_slot.update_texture()
+        self.current_recipe = None
+
+    def add_to_crafting_grid(self, block_name, slot_index):
+        """Добавление предмета в сетку крафта"""
+        if 0 <= slot_index < len(self.grid_slots):
+            slot = self.grid_slots[slot_index]
+            if slot.block_name is None:
+                slot.block_name = block_name
+                slot.count = 1
+            elif slot.block_name == block_name:
+                slot.count += 1
+            else:
+                return False
+
+            slot.update_score()
+            slot.update_texture()
+            self.check_recipes()
+            return True
+        return False
+
+    def remove_from_crafting_grid(self, slot_index):
+        """Удаление предмета из сетки крафта"""
+        if 0 <= slot_index < len(self.grid_slots):
+            slot = self.grid_slots[slot_index]
+            if slot.block_name and slot.count > 0:
+                slot.count -= 1
+                slot.update_score()
+
+                if slot.count == 0:
+                    self.inventory.add_block(slot.block_name)
+                    slot.block_name = None
+                    slot.update_texture()
+
+                self.check_recipes()
+                return True
+        return False
+
+    def check_recipes(self):
+        """Проверка рецептов крафта"""
+        # Создаем матрицу текущего крафта
+        crafting_matrix = []
+        for i in range(CRAFTING_GRID_SIZE):
+            row = []
+            for j in range(CRAFTING_GRID_SIZE):
+                slot = self.grid_slots[i * CRAFTING_GRID_SIZE + j]
+                row.append(slot.block_name if slot.block_name and slot.count > 0 else None)
+            crafting_matrix.append(row)
+
+        # Проверяем все рецепты
+        self.current_recipe = None
+        self.result_slot.block_name = None
+        self.result_slot.count = 0
+
+        for recipe_name, recipe in CRAFTING_RECIPES.items():
+            if self.matches_recipe(crafting_matrix, recipe["pattern"]):
+                self.current_recipe = recipe_name
+                self.result_slot.block_name = recipe["result"]
+                self.result_slot.count = recipe["result_count"]
+                self.result_slot.update_score()
+                self.result_slot.update_texture()
+                break
+
+        if not self.current_recipe:
+            self.result_slot.update_score()
+            self.result_slot.update_texture()
+
+    def matches_recipe(self, crafting_matrix, recipe_pattern):
+        """Проверяет, соответствует ли матрица рецепту"""
+        for i in range(CRAFTING_GRID_SIZE):
+            for j in range(CRAFTING_GRID_SIZE):
+                if crafting_matrix[i][j] != recipe_pattern[i][j]:
+                    return False
+        return True
+
+    def craft_item(self):
+        """Создание предмета по рецепту"""
+        if not self.current_recipe or not self.result_slot.block_name:
+            return False
+
+        recipe = CRAFTING_RECIPES[self.current_recipe]
+
+        # Проверяем, есть ли место в инвентаре для результата
+        if not self.inventory.has_space_for(recipe["result"]):
+            return False
+
+        # Убираем предметы из сетки крафта
+        for slot in self.grid_slots:
+            if slot.block_name and slot.count > 0:
+                slot.count -= 1
+                slot.update_score()
+                if slot.count == 0:
+                    slot.block_name = None
+                    slot.update_texture()
+
+        # Добавляем результат в инвентарь
+        for _ in range(recipe["result_count"]):
+            self.inventory.add_block(recipe["result"])
+
+        # Проверяем рецепты снова
+        self.check_recipes()
+        return True
+
+    def draw(self):
+        """Отрисовка окна крафта"""
+        if not self.is_visible:
+            return
+
+        window_x = SCREEN_WIDTH // 2 - CRAFTING_WINDOW_WIDTH // 2
+        window_y = SCREEN_HEIGHT // 2 - CRAFTING_WINDOW_HEIGHT // 2
+
+        # Заголовок
+        arcade.draw_text(
+            "Крафт",
+            SCREEN_WIDTH // 2,
+            window_y + CRAFTING_WINDOW_HEIGHT - 30,
+            arcade.color.WHITE,
+            24,
+            anchor_x="center"
+        )
+
+        # Текст сетки
+        arcade.draw_text(
+            "Сетка крафта:",
+            window_x + 50,
+            window_y + CRAFTING_WINDOW_HEIGHT - 80,
+            CRAFTING_TEXT_COLOR,
+            16
+        )
+
+        # Текст результата
+        arcade.draw_text(
+            "Результат:",
+            window_x + CRAFTING_WINDOW_WIDTH - 110,
+            window_y + CRAFTING_WINDOW_HEIGHT // 2 + 55,
+            CRAFTING_TEXT_COLOR,
+            16
+        )
+
+        # Отрисовка сетки крафта
+        for slot in self.grid_slots:
+            slot.draw()
+
+        # Отрисовка слота результата
+        if self.result_slot:
+            # Фон для слота результата
+            result_bg_x = self.result_slot.x - 10
+            result_bg_y = self.result_slot.y - 10
+            result_bg_width = self.result_slot.width + 20
+            result_bg_height = self.result_slot.height + 20
+
+            arcade.draw_lbwh_rectangle_filled(
+                result_bg_x, result_bg_y, result_bg_width, result_bg_height,
+                CRAFTING_RESULT_COLOR
+            )
+
+            # Стрелка от сетки к результату
+            arrow_start_x = window_x + 250
+            arrow_end_x = window_x + CRAFTING_WINDOW_WIDTH - 150
+            arrow_y = window_y + CRAFTING_WINDOW_HEIGHT // 2
+
+            arcade.draw_line(
+                arrow_start_x, arrow_y,
+                arrow_end_x, arrow_y,
+                arcade.color.YELLOW, 3
+            )
+
+            arrow_points = [
+                (arrow_end_x - 20, arrow_y - 10),
+                (arrow_end_x, arrow_y),
+                (arrow_end_x - 20, arrow_y + 10)
+            ]
+            arcade.draw_polygon_filled(arrow_points, arcade.color.YELLOW)
+
+            self.result_slot.draw()
+
+            # Подсказка для крафта
+            if self.result_slot.block_name:
+                arcade.draw_text(
+                    "Нажмите C для крафта",
+                    SCREEN_WIDTH // 2,
+                    window_y + 40,
+                    arcade.color.LIGHT_GREEN,
+                    18,
+                    anchor_x="center"
+                )
+
+        # Подсказка для закрытия
+        arcade.draw_text(
+            "Нажмите E для закрытия",
+            SCREEN_WIDTH // 2,
+            window_y + 50,
+            arcade.color.LIGHT_GRAY,
+            14,
+            anchor_x="center"
+        )
 
 
 class InventorySystem:
@@ -106,6 +486,7 @@ class InventorySystem:
         self.window = window
         self.slots = []
         self.selected_slot = 0
+        self.crafting_window = CraftingWindow(self)
         self.setup_hotbar()
 
     def setup_hotbar(self):
@@ -135,12 +516,15 @@ class InventorySystem:
 
     def draw(self):
         """Отрисовка инвентаря"""
-
         # Отрисовка слотов
         for slot in self.slots:
             slot.draw()
 
+        # Отрисовка окна крафта
+        self.crafting_window.draw()
+
     def add_block(self, name_block):
+        """Добавление блока в инвентарь"""
         # Сначала ищем слот с таким же блоком, где можно добавить
         for slot in self.slots:
             if slot.block_name and slot.block_name == name_block and slot.count < 64:
@@ -160,6 +544,20 @@ class InventorySystem:
         # Все слоты заняты
         return False
 
+    def has_space_for(self, block_name):
+        """Проверяет, есть ли место в инвентаре для блока"""
+        # Проверяем слоты с таким же блоком
+        for slot in self.slots:
+            if slot.block_name == block_name and slot.count < 64:
+                return True
+
+        # Проверяем пустые слоты
+        for slot in self.slots:
+            if slot.block_name is None:
+                return True
+
+        return False
+
     def get_selected_block(self):
         """Получение выбранного блока"""
         slot = self.slots[self.selected_slot]
@@ -169,21 +567,21 @@ class InventorySystem:
         """Удаление блока из слота и его установка в мире"""
         slot = self.slots[self.selected_slot]
 
-        if slot.block_name and slot.count > 0:
+        if slot.block_name and slot.count > 0 and slot.block_name in BLOCKS_DATA.keys():
             # Если передан game_window, пытаемся поставить блок
             if game_window:
                 # Проверяем, есть ли блоки рядом (чтобы нельзя было ставить блоки в воздухе)
                 nearby_blocks = arcade.get_sprites_at_point(
-                    (x, y - 32),  # Проверяем блок снизу
+                    (x, y - 64),  # Проверяем блок снизу
                     game_window.all_blocks
                 ) or arcade.get_sprites_at_point(
-                    (x + 32, y),  # Проверяем блок справа
+                    (x + 64, y),  # Проверяем блок справа
                     game_window.all_blocks
                 ) or arcade.get_sprites_at_point(
-                    (x - 32, y),      # Проверяем блок слева
+                    (x - 64, y),  # Проверяем блок слева
                     game_window.all_blocks
                 ) or arcade.get_sprites_at_point(
-                    (x, y + 32),  # Проверяем блок сверху
+                    (x, y + 64),  # Проверяем блок сверху
                     game_window.all_blocks
                 )
                 if nearby_blocks:
@@ -200,81 +598,69 @@ class InventorySystem:
 
         return False
 
+    def on_key_press(self, key, modifiers):
+        """Обработка нажатий клавиш для инвентаря и крафта"""
+        if key == arcade.key.E:
+            # Открытие/закрытие окна крафта
+            self.crafting_window.toggle_visibility()
+            return True
 
-class Crack(arcade.Sprite):
-    def __init__(self, x, y, speed):
-        super().__init__()
-        self.center_x = x
-        self.center_y = y
-        self.texture_idle = arcade.load_texture(
-            "cracks/crack_0.png")
-        self.texture = self.texture_idle
-        self.cracking_animation = []
-        for i in range(1, 9):
-            self.cracking_animation.append(
-                arcade.load_texture(f"cracks/crack_{i}.png"))
-        self.texture_change_time = 0
-        self.texture_change_delay = speed
-        self.current_texture = 0
-        self.scale = 4
-        self.is_breaking_block = True
+        if self.crafting_window.is_visible and key == arcade.key.C:
+            # Крафт предмета
+            if self.crafting_window.craft_item():
+                # Звук успешного крафта
+                if hasattr(self.window, 'craft_sound'):
+                    arcade.play_sound(self.window.craft_sound)
+            return True
 
-    def update_animation(self, delta_time: float = 1 / 60):
-        """Обновление анимации трещины"""
-        self.texture_change_time += delta_time
-        if self.is_breaking_block:
-            if self.texture_change_time >= self.texture_change_delay:
-                self.texture_change_time = 0
-                self.current_texture += 1
-                if self.current_texture == len(self.cracking_animation) - 1:
-                    self.is_breaking_block = False
-                self.texture = self.cracking_animation[self.current_texture]
+        return False
 
+    def on_mouse_press(self, x, y, button, modifiers):
+        """Обработка нажатий мыши для крафта"""
+        if not self.crafting_window.is_visible:
+            return False
 
-class Hero(arcade.Sprite):
-    def __init__(self, x, y, speed):
-        super().__init__()
-        self.center_x = x
-        self.center_y = y
-        self.is_walking = False
-        self.current_side = Side.RIGHT
-        self.texture_idle = arcade.load_texture(
-            "skin/resized-Stive_1.png")
-        self.texture = self.texture_idle
-        self.walk_animation = []
-        for i in range(2, 8):
-            self.walk_animation.append(
-                arcade.load_texture(f"skin/resized-Stive_{i}.png"))
-        self.animation_update_speed = 0.15
-        self.animation_counter = 0
-        self.cur_texture_index = 0
-        self.speed = speed
-        self.dx = 0
-        self.dy = 0
-        self.mining_target = None
-        self.max_health = 100
-        self.health = self.max_health
-        self.is_alive = True
+        # Проверяем, был ли клик по сетке крафта
+        for i, slot in enumerate(self.crafting_window.grid_slots):
+            if (slot.x <= x <= slot.x + slot.width and
+                    slot.y <= y <= slot.y + slot.height):
 
+                selected_block = self.get_selected_block()
+                if button == arcade.MOUSE_BUTTON_LEFT and selected_block:
+                    # Добавляем предмет из выбранного слота в сетку крафта
+                    slot_to_use = self.slots[self.selected_slot]
+                    if slot_to_use.block_name and slot_to_use.count > 0:
+                        if self.crafting_window.add_to_crafting_grid(selected_block, i):
+                            slot_to_use.count -= 1
+                            slot_to_use.update_score()
+                            if slot_to_use.count == 0:
+                                slot_to_use.block_name = None
+                                slot_to_use.update_texture()
 
-    def update(self, delta_time):
-        current_speed = self.speed
-        if self.dx != 0 and self.dy != 0:
-            current_speed /= math.sqrt(2)
-        self.center_x += self.dx * current_speed * delta_time
-        self.center_y += self.dy * current_speed * delta_time
+                elif button == arcade.MOUSE_BUTTON_RIGHT:
+                    # Возвращаем предмет из сетки крафта в инвентарь
+                    if self.crafting_window.remove_from_crafting_grid(i):
+                        returned_block = slot.block_name
+                        if returned_block:
+                            self.add_block(returned_block)
 
-    def update_animation(self, delta_time: float = 1 / 60):
-        self.animation_counter += delta_time
-        if self.animation_counter >= self.animation_update_speed:
-            self.cur_texture_index += 1
-            self.cur_texture_index %= len(self.walk_animation)
-            self.animation_counter = 0
-        if self.is_walking:
-            self.texture = self.walk_animation[self.cur_texture_index] if self.current_side == Side.LEFT else \
-                self.walk_animation[self.cur_texture_index].flip_horizontally()
-        else:
-            self.texture = self.texture_idle
+                return True
+
+        # Проверяем, был ли клик по результату крафта
+        if self.crafting_window.result_slot:
+            result_slot = self.crafting_window.result_slot
+            if (result_slot.x <= x <= result_slot.x + result_slot.width and
+                    result_slot.y <= y <= result_slot.y + result_slot.height):
+
+                if button == arcade.MOUSE_BUTTON_LEFT and result_slot.block_name:
+                    # Крафт предмета по клику на результат
+                    if self.crafting_window.craft_item():
+                        if hasattr(self.window, 'craft_sound'):
+                            arcade.play_sound(self.window.craft_sound)
+
+                return True
+
+        return False
 
 
 class GridGame(arcade.Window):
@@ -302,19 +688,10 @@ class GridGame(arcade.Window):
         self.is_jumping = False
         self.can_jump = False
 
-        # Ссылки на спрайт-листы
-        self.earth_list = None
-        self.stone_list = None
-        self.coal_list = None
-        self.iron_list = None
-        self.gold_list = None
-        self.diamonds_list = None
-        self.wood_list = None
-        self.flowers_list = None
-        self.foliage_list = None
-        self.collisions_list = None
         self.player_list = None
         self.first_blocks_hit_list = arcade.SpriteList()
+
+        self.sprite_lists = {}
 
         self.all_blocks = arcade.SpriteList()
 
@@ -336,7 +713,6 @@ class GridGame(arcade.Window):
         self.respawn_button_height = 50
 
     def setup(self):
-
         # СОЗДАЕМ И СОХРАНЯЕМ ВСЕ СПРАЙТ-ЛИСТЫ
         self.create_sprite_lists()
 
@@ -349,7 +725,7 @@ class GridGame(arcade.Window):
 
         # МОНСТР
         monster = Monster(400, 700, speed=60, damage=10)
-        monster.setup_physics(self.collisions_list)
+        monster.setup_physics(self.sprite_lists['collisions'])
         monster.scale = 0.32
         self.monster_list.append(monster)
 
@@ -359,7 +735,7 @@ class GridGame(arcade.Window):
 
         # Физический движок
         self.physics_engine = arcade.PhysicsEnginePlatformer(
-            self.player, self.collisions_list,
+            self.player, self.sprite_lists['collisions'],
             gravity_constant=GRAVITY
         )
 
@@ -368,37 +744,26 @@ class GridGame(arcade.Window):
         self.grass2_sound = arcade.load_sound("music/grass2.mp3")
         self.wood_sound = arcade.load_sound("music/wood.mp3")
         self.stone_sound = arcade.load_sound("music/stone.mp3")
+        self.craft_sound = arcade.load_sound("music/stone.mp3")  # Можно заменить на другой звук
 
     def create_sprite_lists(self):
         """Создание всех спрайт-листов"""
         # Создаем каждый спрайт-лист отдельно
         # Загружаем уровень из TMX-файла
         self.tile_map = arcade.load_tilemap("test_map_minecraft.tmx", scaling=TILE_SCALING)
-        self.earth_list = self.tile_map.sprite_lists["earth"]
-        self.stone_list = self.tile_map.sprite_lists["stone"]
-        self.coal_list = self.tile_map.sprite_lists["coal"]
-        self.iron_list = self.tile_map.sprite_lists["iron"]
-        self.gold_list = self.tile_map.sprite_lists["gold"]
-        self.diamonds_list = self.tile_map.sprite_lists["diamonds"]
-        self.wood_list = self.tile_map.sprite_lists["wood"]
-        self.flowers_list = self.tile_map.sprite_lists["flowers"]
-        self.foliage_list = self.tile_map.sprite_lists["foliage"]
-        self.collisions_list = self.tile_map.sprite_lists["collisions"]
+
         self.player_list = arcade.SpriteList()
         self.cracks_list = arcade.SpriteList()
         self.monster_list = arcade.SpriteList()
 
-        self.all_blocks.extend(
-            [*self.earth_list, *self.stone_list, *self.coal_list,
-             *self.iron_list, *self.gold_list,
-             *self.collisions_list, *self.wood_list, *self.flowers_list, *self.foliage_list,
-             *self.diamonds_list])
+        for block_name in ['earth', 'stone', 'coal', 'iron', 'gold',
+                           'diamonds', 'wood', 'flowers', 'foliage', 'collisions']:
+            if block_name not in self.sprite_lists:
+                self.sprite_lists[block_name] = self.tile_map.sprite_lists[block_name]
 
-        self.name_blocks = ['self.earth_list', 'self.stone_list', 'self.coal_list', 'self.iron_list',
-                            'self.gold_list', 'self.diamonds_list', 'self.wood_list',
-                            'self.flowers_list', 'self.foliage_list']
+        for sprite_list in self.sprite_lists.values():
+            self.all_blocks.extend(sprite_list)
 
-        # self.update_all_blocks_list()
 
     def on_draw(self):
         """Отрисовка экрана."""
@@ -406,15 +771,11 @@ class GridGame(arcade.Window):
 
         # 1) Мир
         self.world_camera.use()
-        self.earth_list.draw()
-        self.stone_list.draw()
-        self.coal_list.draw()
-        self.iron_list.draw()
-        self.gold_list.draw()
-        self.diamonds_list.draw()
-        self.wood_list.draw()
-        self.flowers_list.draw()
-        self.foliage_list.draw()
+        for name, sprite_list in self.sprite_lists.items():
+            if name != 'collisions':
+                sprite_list.draw()
+        # for sprite_list in self.sprite_lists.values():
+        #     sprite_list.draw()
         self.cracks_list.draw()
 
         self.player_list.draw()
@@ -449,8 +810,19 @@ class GridGame(arcade.Window):
             self.draw_respawn_screen()
             return
 
-        # Отрисовка инвентаря
+        # Отрисовка инвентаря и окна крафта
         self.inventory.draw()
+
+        # Подсказка для открытия крафта
+        if not self.inventory.crafting_window.is_visible and not self.show_respawn_screen:
+            arcade.draw_text(
+                "Нажмите E для открытия крафта",
+                SCREEN_WIDTH // 2,
+                85,
+                arcade.color.LIGHT_GRAY,
+                16,
+                anchor_x="center"
+            )
 
     def draw_respawn_screen(self):
         """Рисуем экран смерти игрока с кнопкой перерождения"""
@@ -562,6 +934,11 @@ class GridGame(arcade.Window):
                 self.respawn_player()
             return
 
+        # Проверяем клики в окне крафта
+        if self.inventory.crafting_window.is_visible:
+            if self.inventory.on_mouse_press(x, y, button, modifiers):
+                return
+
         # изменение координат с учётом движения камеры
         x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
         if button == arcade.MOUSE_BUTTON_LEFT:
@@ -570,12 +947,11 @@ class GridGame(arcade.Window):
                     self.player.center_y - 100 <= y <= self.player.center_y + 100):
                 # добавляем в список все нажатые блоки
                 self.first_blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)
-
                 for block in self.first_blocks_hit_list:
-                    for name in self.name_blocks:
+                    for name, list in self.sprite_lists.items():
                         # по имени находим информацию о блоке
-                        if block in eval(name):
-                            self.name = name[5:-5]
+                        if block in list and name != 'collisions':
+                            self.name = name
 
                             if not self.sound_player:
                                 music = BLOCKS_DATA[self.name][1]
@@ -591,6 +967,7 @@ class GridGame(arcade.Window):
                             self.is_breaking_block = True
                             self.cracks_list.append(crack)
                             self.press_time = time.time()
+
         if button == arcade.MOUSE_BUTTON_RIGHT:
             if (self.player.center_x - 140 <= x <= self.player.center_x + 140 and
                     self.player.center_y - 140 <= y <= self.player.center_y + 140):
@@ -624,7 +1001,7 @@ class GridGame(arcade.Window):
             for crack in self.cracks_list:
                 crack.remove_from_sprite_lists()
             for block in self.first_blocks_hit_list:
-                if block not in self.collisions_list:
+                if block not in self.sprite_lists['collisions']:
                     self.inventory.add_block(self.name)
                 block.remove_from_sprite_lists()
 
@@ -640,6 +1017,9 @@ class GridGame(arcade.Window):
             self.inventory.scroll_slot(1)
 
     def on_key_press(self, key, modifiers):
+        # Проверяем обработку клавиш инвентарем (крафт)
+        if self.inventory.on_key_press(key, modifiers):
+            return
 
         # прыжок
         if key in (arcade.key.W, arcade.key.UP):
@@ -716,27 +1096,21 @@ class GridGame(arcade.Window):
         block.center_x = grid_x
         block.center_y = grid_y
 
-        collision_block = arcade.Sprite(
-            f"minecraft_blocks/Border_29_EE1.webp",
-            scale=TILE_SCALING
-        )
-        collision_block.center_x = grid_x
-        collision_block.center_y = grid_y
+        # Добавляем блок только если это блок с коллизией
+        if block_name in ['earth', 'stone', 'wood', 'foliage', 'wooden_planks',
+                          'oven', 'oven2', 'stone_bricks', 'glass']:
+            collision_block = arcade.Sprite(
+                f"minecraft_blocks/Border_29_EE1.webp",
+                scale=TILE_SCALING
+            )
+            collision_block.center_x = grid_x
+            collision_block.center_y = grid_y
+            self.sprite_lists['collisions'].append(collision_block)
 
-        # Добавляем блок в соответствующий список
-        if block_name == 'earth':
-            self.earth_list.append(block)
-            self.collisions_list.append(collision_block)
-        elif block_name == 'stone':
-            self.stone_list.append(block)
-            self.collisions_list.append(collision_block)
-        elif block_name == 'wood':
-            self.wood_list.append(block)
-            self.collisions_list.append(collision_block)
-        elif block_name == 'flowers':
-            self.flowers_list.append(block)
-        elif block_name == 'foliage':
-            self.foliage_list.append(block)
+        # Для новых предметов крафта
+        if block_name not in self.sprite_lists:
+            self.sprite_lists[block_name] = arcade.SpriteList()
+        self.sprite_lists[block_name].append(block)
 
         # Обновляем общий список всех блоков
         self.update_all_blocks_list()
@@ -746,11 +1120,8 @@ class GridGame(arcade.Window):
     def update_all_blocks_list(self):
         """Обновляет общий список всех блоков"""
         self.all_blocks.clear()
-        self.all_blocks.extend(
-            [*self.earth_list, *self.stone_list, *self.coal_list,
-             *self.iron_list, *self.gold_list,
-             *self.collisions_list, *self.wood_list, *self.flowers_list, *self.foliage_list,
-             *self.diamonds_list])
+        for sprite_list in self.sprite_lists.values():
+            self.all_blocks.extend(sprite_list)
 
     def respawn_player(self):
         self.player = Hero(self.player_start_x, self.player_start_y, 200)
@@ -763,11 +1134,84 @@ class GridGame(arcade.Window):
         # Пересоздаём физику, чтобы после смерти не стать англелом
         self.physics_engine = arcade.PhysicsEnginePlatformer(
             self.player,
-            self.collisions_list,
+            self.sprite_lists['collisions'],
             gravity_constant=GRAVITY
         )
 
-        # self.world_camera.move_to((self.player.center_x, self.player.center_y), 0)
+
+class Hero(arcade.Sprite):
+    def __init__(self, x, y, speed):
+        super().__init__()
+        self.center_x = x
+        self.center_y = y
+        self.is_walking = False
+        self.current_side = Side.RIGHT
+        self.texture_idle = arcade.load_texture(
+            "skin/resized-Stive_1.png")
+        self.texture = self.texture_idle
+        self.walk_animation = []
+        for i in range(2, 8):
+            self.walk_animation.append(
+                arcade.load_texture(f"skin/resized-Stive_{i}.png"))
+        self.animation_update_speed = 0.15
+        self.animation_counter = 0
+        self.cur_texture_index = 0
+        self.speed = speed
+        self.dx = 0
+        self.dy = 0
+        self.mining_target = None
+        self.max_health = 100
+        self.health = self.max_health
+        self.is_alive = True
+
+    def update(self, delta_time):
+        current_speed = self.speed
+        if self.dx != 0 and self.dy != 0:
+            current_speed /= math.sqrt(2)
+        self.center_x += self.dx * current_speed * delta_time
+        self.center_y += self.dy * current_speed * delta_time
+
+    def update_animation(self, delta_time: float = 1 / 60):
+        self.animation_counter += delta_time
+        if self.animation_counter >= self.animation_update_speed:
+            self.cur_texture_index += 1
+            self.cur_texture_index %= len(self.walk_animation)
+            self.animation_counter = 0
+        if self.is_walking:
+            self.texture = self.walk_animation[self.cur_texture_index] if self.current_side == Side.LEFT else \
+                self.walk_animation[self.cur_texture_index].flip_horizontally()
+        else:
+            self.texture = self.texture_idle
+
+
+class Crack(arcade.Sprite):
+    def __init__(self, x, y, speed):
+        super().__init__()
+        self.center_x = x
+        self.center_y = y
+        self.texture_idle = arcade.load_texture(
+            "cracks/crack_0.png")
+        self.texture = self.texture_idle
+        self.cracking_animation = []
+        for i in range(1, 9):
+            self.cracking_animation.append(
+                arcade.load_texture(f"cracks/crack_{i}.png"))
+        self.texture_change_time = 0
+        self.texture_change_delay = speed
+        self.current_texture = 0
+        self.scale = 4
+        self.is_breaking_block = True
+
+    def update_animation(self, delta_time: float = 1 / 60):
+        """Обновление анимации трещины"""
+        self.texture_change_time += delta_time
+        if self.is_breaking_block:
+            if self.texture_change_time >= self.texture_change_delay:
+                self.texture_change_time = 0
+                self.current_texture += 1
+                if self.current_texture == len(self.cracking_animation) - 1:
+                    self.is_breaking_block = False
+                self.texture = self.cracking_animation[self.current_texture]
 
 
 class Monster(arcade.Sprite):
@@ -807,7 +1251,6 @@ class Monster(arcade.Sprite):
 
         self.current_side = Side.RIGHT
 
-
     def setup_physics(self, collision_list):
         self.physics_engine = arcade.PhysicsEnginePlatformer(
             self,
@@ -827,7 +1270,7 @@ class Monster(arcade.Sprite):
         self.center_x += self.dx * self.speed * delta_time
 
         # Ходим к игроку по Y
-        if  player.center_y - self.center_y >= 62:
+        if player.center_y - self.center_y >= 62:
             self.dy = 12
         else:
             self.dy = 0
@@ -858,8 +1301,9 @@ class Monster(arcade.Sprite):
 
 
 
-
 def main():
+
+    # Создаем и запускаем игру
     game = GridGame()
     game.setup()
     arcade.run()
