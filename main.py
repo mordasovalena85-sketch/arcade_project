@@ -2,6 +2,12 @@ import arcade
 import math
 import enum
 import time
+import pyglet
+from arcade import Text
+from arcade.gui import (UIManager, UIAnchorLayout, UIBoxLayout,
+                        UITextureButton, UILabel, UIDropdown, UISlider)
+from globals import BLOCKS_DATA, CRAFTING_RECIPES, WEAPON
+
 
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 600
@@ -11,8 +17,6 @@ TILE_SCALING = 0.4
 CAMERA_LERP = 0.12
 
 GRAVITY = 1
-
-from globals import BLOCKS_DATA, CRAFTING_RECIPES, WEAPON
 
 # Размеры блоков
 BLOCK_SIZE = 40
@@ -271,32 +275,35 @@ class CraftingWindow:
         window_y = SCREEN_HEIGHT // 2 - CRAFTING_WINDOW_HEIGHT // 2
 
         # Заголовок
-        arcade.draw_text(
-            "Крафт",
-            SCREEN_WIDTH // 2,
-            window_y + CRAFTING_WINDOW_HEIGHT - 30,
-            arcade.color.WHITE,
-            24,
+        title_text = Text(
+            text="Крафт",
+            x=SCREEN_WIDTH // 2,
+            y=window_y + CRAFTING_WINDOW_HEIGHT - 30,
+            color=arcade.color.WHITE,
+            font_size=24,
             anchor_x="center"
         )
+        title_text.draw()
 
         # Текст сетки
-        arcade.draw_text(
-            "Сетка крафта:",
-            window_x + 50,
-            window_y + CRAFTING_WINDOW_HEIGHT - 80,
-            CRAFTING_TEXT_COLOR,
-            16
+        grid_text = Text(
+            text="Сетка крафта:",
+            x=window_x + 50,
+            y=window_y + CRAFTING_WINDOW_HEIGHT - 80,
+            color=arcade.color.WHITE,
+            font_size=16
         )
+        grid_text.draw()
 
         # Текст результата
-        arcade.draw_text(
-            "Результат:",
-            window_x + CRAFTING_WINDOW_WIDTH - 110,
-            window_y + CRAFTING_WINDOW_HEIGHT // 2 + 55,
-            CRAFTING_TEXT_COLOR,
-            16
+        result_text = Text(
+            text="Результат:",
+            x=window_x + CRAFTING_WINDOW_WIDTH - 110,
+            y=window_y + CRAFTING_WINDOW_HEIGHT // 2 + 55,
+            color=arcade.color.WHITE,
+            font_size=16
         )
+        result_text.draw()
 
         # Отрисовка сетки крафта
         for slot in self.grid_slots:
@@ -335,26 +342,27 @@ class CraftingWindow:
 
             self.result_slot.draw()
 
-            # Подсказка для крафта
-            if self.result_slot.block_name:
-                arcade.draw_text(
-                    "Нажмите C для крафта",
-                    SCREEN_WIDTH // 2,
-                    window_y + 40,
-                    arcade.color.LIGHT_GREEN,
-                    18,
-                    anchor_x="center"
-                )
+            # # Подсказка для крафта
+            # if self.result_slot.block_name:
+            #     arcade.draw_text(
+            #         "Нажмите C для крафта",
+            #         SCREEN_WIDTH // 2,
+            #         window_y + 40,
+            #         arcade.color.LIGHT_GREEN,
+            #         18,
+            #         anchor_x="center"
+            #     )
 
         # Подсказка для закрытия
-        arcade.draw_text(
-            "Нажмите E для закрытия",
-            SCREEN_WIDTH // 2,
-            window_y + 50,
-            arcade.color.LIGHT_GRAY,
-            14,
+        help_text = Text(
+            text="Нажмите E для закрытия:",
+            x=SCREEN_WIDTH // 2,
+            y=window_y + 50,
+            color=arcade.color.WHITE,
+            font_size=14,
             anchor_x="center"
         )
+        help_text.draw()
 
 
 class InventorySystem:
@@ -540,589 +548,6 @@ class InventorySystem:
 
         return False
 
-
-class GridGame(arcade.Window):
-    def __init__(self):
-        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, antialiasing=True)
-        arcade.set_background_color(arcade.color.SKY_BLUE)
-
-        # Камеры: мир и GUI
-        self.world_camera = arcade.camera.Camera2D()
-        self.gui_camera = arcade.camera.Camera2D()
-
-        # Данные уровня
-        self.tile_map = None
-        self.player_list = arcade.SpriteList()
-        self.player = None
-        self.world_width = None
-        self.world_height = None
-
-        self.is_jumping = False
-        self.can_jump = False
-        self.player_list = None
-        self.first_blocks_hit_list = arcade.SpriteList()
-        self.sprite_lists = {}
-        self.all_blocks = arcade.SpriteList()
-        self.is_breaking_block = False
-        self.hold_duration = 10
-
-        # Система инвентаря
-        self.inventory = InventorySystem(self)
-
-        # Экран респавна
-        self.respawn_screen = RespawnScreen(self)
-
-        self.sound_player = None
-    def setup(self):
-        # СОЗДАЕМ И СОХРАНЯЕМ ВСЕ СПРАЙТ-ЛИСТЫ
-        self.create_sprite_lists()
-
-        # СОЗДАЕМ ИГРОКА
-        self.player_start_x = 200
-        self.player_start_y = 1400
-        self.player = Hero(self.player_start_x, self.player_start_y, 200)
-        self.player.scale = 0.24
-        self.player_list.append(self.player)
-
-        # МОНСТР
-        monster = Monster(400, 700, speed=60, damage=10)
-        monster.setup_physics(self.sprite_lists['collisions'])
-        monster.scale = 0.32
-        self.monster_list.append(monster)
-
-        # Уточняем размеры мира по карте
-        self.world_width = int(self.tile_map.width * self.tile_map.tile_width * TILE_SCALING)
-        self.world_height = int(self.tile_map.height * self.tile_map.tile_height * TILE_SCALING)
-
-        # Физический движок
-        self.physics_engine = arcade.PhysicsEnginePlatformer(
-            self.player, self.sprite_lists['collisions'],
-            gravity_constant=GRAVITY
-        )
-
-        # Загрузка музыки
-        self.grass_sound = arcade.load_sound("music/grass.mp3")
-        self.grass2_sound = arcade.load_sound("music/grass2.mp3")
-        self.wood_sound = arcade.load_sound("music/wood.mp3")
-        self.stone_sound = arcade.load_sound("music/stone.mp3")
-        self.craft_sound = arcade.load_sound("music/stone.mp3")  # Можно заменить на другой звук
-
-    def create_sprite_lists(self):
-        """Создание всех спрайт-листов"""
-        # Создаем каждый спрайт-лист отдельно
-        # Загружаем уровень из TMX-файла
-        self.tile_map = arcade.load_tilemap("test_map_minecraft.tmx", scaling=TILE_SCALING)
-
-        self.player_list = arcade.SpriteList()
-        self.cracks_list = arcade.SpriteList()
-        self.monster_list = arcade.SpriteList()
-
-        for block_name in ['earth', 'stone', 'coal', 'iron', 'gold',
-                           'diamonds', 'wood', 'flowers', 'foliage', 'collisions']:
-            if block_name not in self.sprite_lists:
-                self.sprite_lists[block_name] = self.tile_map.sprite_lists[block_name]
-
-        for sprite_list in self.sprite_lists.values():
-            self.all_blocks.extend(sprite_list)
-
-    def on_draw(self):
-        """Отрисовка экрана."""
-        self.clear()
-
-        # 1) Мир
-        self.world_camera.use()
-        for name, sprite_list in self.sprite_lists.items():
-            if name != 'collisions':
-                sprite_list.draw()
-
-        self.cracks_list.draw()
-        self.player_list.draw()
-        self.monster_list.draw()
-
-        # 2) GUI
-        self.gui_camera.use()
-
-        if self.player and self.player.is_alive:
-            bar_width = 200
-            bar_height = 20
-
-            health_ratio = max(0, self.player.health / self.player.max_health)
-            health_width = int(bar_width * health_ratio)
-
-            x = 20
-            y = SCREEN_HEIGHT - 40
-
-            # Фон
-            bg_rect = arcade.rect.XYWH(x + bar_width // 2, y, bar_width, bar_height)
-            arcade.draw_rect_filled(bg_rect, arcade.color.DARK_RED)
-
-            # Текущее здоровье
-            hp_rect = arcade.rect.XYWH(x + health_width // 2, y, health_width, bar_height)
-            arcade.draw_rect_filled(hp_rect, arcade.color.GREEN)
-
-            # Рамка
-            frame_rect = arcade.rect.XYWH(x + bar_width // 2, y, bar_width, bar_height)
-            arcade.draw_rect_outline(frame_rect, arcade.color.BLACK, 2)
-
-        # Отрисовка экрана респавна
-        self.respawn_screen.draw()
-
-        # Отрисовка инвентаря и окна крафта (если игрок жив и не на экране респавна)
-        if self.player and self.player.is_alive and not self.respawn_screen.is_visible:
-            self.inventory.draw()
-
-            # Подсказка для открытия крафта
-            if not self.inventory.crafting_window.is_visible:
-                arcade.draw_text(
-                    "Нажмите E для открытия крафта",
-                    SCREEN_WIDTH // 2,
-                    85,
-                    arcade.color.LIGHT_GRAY,
-                    16,
-                    anchor_x="center"
-                )
-
-
-    def on_update(self, dt: float):
-        self.physics_engine.update()
-
-        # Анимация игрока
-        self.player_list.update_animation(dt)
-        self.player_list.update(dt)
-
-        # Обновление трещины
-        if self.is_breaking_block:
-            release_time = time.time()
-            self.hold_duration = release_time - self.press_time
-            if self.hold_duration > self.time_digging:
-                self.remove_blocks_and_cracks()
-            else:
-                for crack in self.cracks_list:
-                    crack.update_animation(dt)
-        else:
-            for crack in self.cracks_list:
-                crack.remove_from_sprite_lists()
-
-        if not self.player:
-            return
-
-        if self.player.health <= 0 and self.player.is_alive:
-            self.player.is_alive = False
-            self.player.remove_from_sprite_lists()
-            self.respawn_screen.show()  # Показываем экран респавна
-
-        # Если виден экран респавна, не обновляем остальную игру
-        if self.respawn_screen.is_visible:
-            return
-
-        # Движение камеры
-        cam_x, cam_y = self.world_camera.position
-
-        # Не показываем «пустоту» за краями карты
-        half_w = self.world_camera.viewport_width / 2
-        half_h = self.world_camera.viewport_height / 2
-        target_x = max(half_w, min(self.world_width - half_w, self.player.center_x))
-        target_y = max(half_h, min(self.world_height - half_h, self.player.center_y))
-
-        # Плавное перемещение
-        smooth_x = (1 - CAMERA_LERP) * cam_x + CAMERA_LERP * target_x
-        smooth_y = (1 - CAMERA_LERP) * cam_y + CAMERA_LERP * target_y
-
-        self.world_camera.position = (smooth_x, smooth_y)
-
-        self.monster_list.update_animation(dt)
-
-        for monster in self.monster_list:
-            monster.update(dt, self.player)
-
-    def on_mouse_press(self, x, y, button, modifiers):
-        """Обработка нажатия мыши"""
-        # Обновляем позицию мыши для экрана респавна
-        self.respawn_screen.update_mouse_position(x, y)
-
-        # Проверяем клик по кнопке респавна
-        if self.respawn_screen.check_button_click(x, y):
-            self.respawn_player()
-            return
-
-        # Обработка кликов в остальной игре только если игрок жив
-        if not self.player or not self.player.is_alive:
-            return
-
-        # Проверяем клики в окне крафта
-        if self.inventory.crafting_window.is_visible:
-            if self.inventory.on_mouse_press(x, y, button, modifiers):
-                return
-
-        # изменение координат с учётом движения камеры
-        x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
-        if button == arcade.MOUSE_BUTTON_LEFT:
-            # проверка на близость к игроку
-            if (self.player.center_x - 100 <= x <= self.player.center_x + 100 and
-                    self.player.center_y - 100 <= y <= self.player.center_y + 100):
-                # добавляем в список все нажатые блоки
-                self.first_blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)
-                for block in self.first_blocks_hit_list:
-                    for name, list in self.sprite_lists.items():
-                        # по имени находим информацию о блоке
-                        if block in list and name != 'collisions':
-                            self.name = name
-
-                            if not self.sound_player:
-                                music = BLOCKS_DATA[self.name][1]
-                                self.sound_player = arcade.play_sound(
-                                    eval(f'self.{music}_sound'),
-                                    loop=True)
-                            selected_block_name = self.inventory.get_selected_block()
-                            coef = 1
-                            if selected_block_name:
-                                if selected_block_name in WEAPON.keys():
-                                    if self.name in WEAPON[selected_block_name]['object']:
-                                        coef = WEAPON[selected_block_name]['damage']
-                            self.time_digging = BLOCKS_DATA[self.name][0] / coef
-                            speed_animation_digging = BLOCKS_DATA[self.name][2]
-
-                            # создаём трещину
-                            crack = Crack(block.center_x, block.center_y,
-                                          self.time_digging / speed_animation_digging)
-                            self.is_breaking_block = True
-                            self.cracks_list.append(crack)
-                            self.press_time = time.time()
-
-        if button == arcade.MOUSE_BUTTON_RIGHT:
-            if (self.player.center_x - 140 <= x <= self.player.center_x + 140 and
-                    self.player.center_y - 140 <= y <= self.player.center_y + 140):
-                self.inventory.remove_block(x, y, self)
-
-    def on_mouse_motion(self, x, y, dx, dy):
-        """Обработка движения мыши"""
-        # Обновляем позицию мыши для экрана респавна
-        self.respawn_screen.update_mouse_position(x, y)
-
-        if self.is_breaking_block:
-            x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
-            blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)
-            # смотрим, не сместился ли курсор с блока
-            for block in blocks_hit_list:
-                if block not in self.first_blocks_hit_list:
-                    self.remove_blocks_and_cracks()
-
-    def on_mouse_release(self, x, y, button, modifiers):
-        if self.is_breaking_block:
-            self.remove_blocks_and_cracks()
-
-    def remove_blocks_and_cracks(self):
-        """Останавливает копание блока.
-        Удаляет его и трещины, если прошло достаточно времени"""
-        release_time = time.time()
-        self.hold_duration = release_time - self.press_time
-        self.is_breaking_block = False
-        if self.sound_player:
-            arcade.stop_sound(self.sound_player)
-        self.sound_player = None
-
-        if self.hold_duration > self.time_digging:
-            self.hold_duration = 10
-            for crack in self.cracks_list:
-                crack.remove_from_sprite_lists()
-            for block in self.first_blocks_hit_list:
-                if block not in self.sprite_lists['collisions']:
-                    if self.name in ['coal', 'iron', 'gold', 'diamonds']:
-                        self.name += '2'
-                    self.inventory.add_block(self.name)
-                block.remove_from_sprite_lists()
-
-        # удаляем только трещины, если прошло меньше нужного времени
-        for crack in self.cracks_list:
-            crack.remove_from_sprite_lists()
-
-    def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
-        """Обработка прокрутки колеса мыши"""
-        if scroll_y > 0:  # Прокрутка вверх
-            self.inventory.scroll_slot(-1)
-        elif scroll_y < 0:  # Прокрутка вниз
-            self.inventory.scroll_slot(1)
-
-    def on_key_press(self, key, modifiers):
-        # Обработка клавиш для экрана респавна
-        if self.respawn_screen.on_key_press(key, modifiers):
-            self.respawn_player()
-            return
-
-        # Проверяем обработку клавиш инвентарем (крафт)
-        if self.inventory.on_key_press(key, modifiers):
-            return
-
-        # Обработка игровых клавиш только если игрок жив
-        if not self.player or not self.player.is_alive:
-            return
-
-        # прыжок
-        if key in (arcade.key.W, arcade.key.UP):
-            if self.physics_engine.can_jump():
-                self.player.dy = 6
-
-        # движение
-        elif key in (arcade.key.A, arcade.key.LEFT):
-            self.player.dx = -1
-            self.player.is_walking = True
-            self.player.current_side = Side.LEFT
-        elif key in (arcade.key.D, arcade.key.RIGHT):
-            self.player.dx = 1
-            self.player.is_walking = True
-            self.player.current_side = Side.RIGHT
-
-    def on_key_release(self, key, modifiers):
-        if key in (arcade.key.W, arcade.key.UP):
-            self.player.dy = 0
-        elif key in (arcade.key.A, arcade.key.LEFT):
-            self.player.dx = 0
-        elif key in (arcade.key.S, arcade.key.DOWN):
-            self.player.dy = 0
-        elif key in (arcade.key.D, arcade.key.RIGHT):
-            self.player.dx = 0
-        if self.player.dx == 0 and self.player.dy == 0:
-            self.player.is_walking = False
-
-        if not self.player.is_alive:
-            return
-
-    def create_block_at_position(self, block_name, x, y):
-        """Создает блок в указанной позиции"""
-        # Преобразуем координаты в координаты сетки
-        actual_tile_size = self.tile_map.tile_width * TILE_SCALING
-        grid_x1 = round(x / actual_tile_size) * actual_tile_size + 32
-        grid_x2 = round(x / actual_tile_size) * actual_tile_size - 32
-        grid_x = grid_x1 if abs(x - grid_x1) < abs(x - grid_x2) else grid_x2
-        grid_y1 = round(y / actual_tile_size) * actual_tile_size + 32
-        grid_y2 = round(y / actual_tile_size) * actual_tile_size - 32
-        grid_y = grid_y1 if abs(y - grid_y1) < abs(y - grid_y2) else grid_y2
-
-        # Проверяем, нет ли уже блока в этой позиции
-        point = (grid_x, grid_y)
-        existing_blocks = arcade.get_sprites_at_point(point, self.all_blocks)
-
-        if existing_blocks:
-            return False  # Место занято
-
-        # Проверяем, чтобы блок не ставился внутри игрока
-        player_rect = arcade.LRBT(
-            self.player.left - 5,
-            self.player.right + 5,
-            self.player.bottom - 5,
-            self.player.top + 5
-        )
-
-        if player_rect.left <= grid_x <= player_rect.right and player_rect.bottom <= grid_y <= player_rect.top:
-            return False  # Нельзя ставить блок внутри игрока
-
-        # Создаем блок в зависимости от типа
-        block = arcade.Sprite(
-            f"minecraft_blocks/{block_name}.webp",
-            scale=TILE_SCALING
-        )
-
-        block.center_x = grid_x
-        block.center_y = grid_y
-
-        # Добавляем блок только если это блок с коллизией
-        if block_name in ['earth', 'stone', 'wood', 'foliage', 'wooden_planks',
-                          'oven', 'oven2', 'stone_bricks', 'glass']:
-            collision_block = arcade.Sprite(
-                f"minecraft_blocks/Border_29_EE1.webp",
-                scale=TILE_SCALING
-            )
-            collision_block.center_x = grid_x
-            collision_block.center_y = grid_y
-            self.sprite_lists['collisions'].append(collision_block)
-
-        # Для новых предметов крафта
-        if block_name not in self.sprite_lists:
-            self.sprite_lists[block_name] = arcade.SpriteList()
-        self.sprite_lists[block_name].append(block)
-
-        # Обновляем общий список всех блоков
-        self.update_all_blocks_list()
-
-        return True
-
-    def update_all_blocks_list(self):
-        """Обновляет общий список всех блоков"""
-        self.all_blocks.clear()
-        for sprite_list in self.sprite_lists.values():
-            self.all_blocks.extend(sprite_list)
-
-    def respawn_player(self):
-        """Перерождение игрока"""
-        self.player = Hero(self.player_start_x, self.player_start_y, 200)
-        self.player.scale = 0.24
-        self.player_list.append(self.player)
-        self.player.health = self.player.max_health
-        self.player.is_alive = True
-
-        # Скрываем экран респавна
-        self.respawn_screen.hide()
-
-        # Пересоздаём физику
-        self.physics_engine = arcade.PhysicsEnginePlatformer(
-            self.player,
-            self.sprite_lists['collisions'],
-            gravity_constant=GRAVITY
-        )
-
-
-class RespawnScreen:
-    """Класс для экрана респавна в конце игры"""
-
-    def __init__(self, window):
-        self.window = window
-        self.is_visible = False
-
-        # Позиция и размеры кнопки респавна
-        self.respawn_button_x = SCREEN_WIDTH // 2
-        self.respawn_button_y = SCREEN_HEIGHT // 2 - 60
-        self.respawn_button_width = 200
-        self.respawn_button_height = 50
-
-        # Цвета
-        self.background_color = (0, 0, 0, 180)  # Полупрозрачный черный
-        self.title_color = arcade.color.RED
-        self.text_color = arcade.color.WHITE
-        self.button_color = arcade.color.BLUE_GRAY
-        self.button_hover_color = arcade.color.LIGHT_BLUE
-        self.button_border_color = arcade.color.BLACK
-
-        # Состояние кнопки
-        self.is_button_hovered = False
-
-    def show(self):
-        """Показать экран респавна"""
-        self.is_visible = True
-
-    def hide(self):
-        """Скрыть экран респавна"""
-        self.is_visible = False
-        self.is_button_hovered = False
-
-    def update_mouse_position(self, x, y):
-        """Обновить позицию мыши для определения наведения на кнопку"""
-        if not self.is_visible:
-            return
-
-        # Проверяем, находится ли курсор над кнопкой
-        left = self.respawn_button_x - self.respawn_button_width / 2
-        right = self.respawn_button_x + self.respawn_button_width / 2
-        bottom = self.respawn_button_y - self.respawn_button_height / 2
-        top = self.respawn_button_y + self.respawn_button_height / 2
-
-        self.is_button_hovered = (left <= x <= right and bottom <= y <= top)
-
-    def check_button_click(self, x, y):
-        """Проверить, была ли нажата кнопка респавна"""
-        if not self.is_visible:
-            return False
-
-        left = self.respawn_button_x - self.respawn_button_width / 2
-        right = self.respawn_button_x + self.respawn_button_width / 2
-        bottom = self.respawn_button_y - self.respawn_button_height / 2
-        top = self.respawn_button_y + self.respawn_button_height / 2
-
-        if left <= x <= right and bottom <= y <= top:
-            self.hide()
-            return True
-
-        return False
-
-    def on_key_press(self, key, modifiers):
-        """Обработка нажатий клавиш"""
-        if not self.is_visible:
-            return False
-
-        if key == arcade.key.R:
-            # Респавн по клавише R
-            self.hide()
-            return True
-
-        return False
-
-    def draw(self):
-        """Отрисовка экрана респавна"""
-        if not self.is_visible:
-            return
-
-        # Используем камеру GUI
-        self.window.gui_camera.use()
-
-        # Полупрозрачный фон
-        arcade.draw_lbwh_rectangle_filled(
-            0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
-            self.background_color
-        )
-
-        # Текст смерти
-        arcade.draw_text(
-            "Вы умерли",
-            SCREEN_WIDTH // 2,
-            SCREEN_HEIGHT // 2 + 30,
-            self.title_color,
-            font_size=40,
-            anchor_x="center",
-            bold=True
-        )
-
-        arcade.draw_text(
-            "Нажмите кнопку, чтобы переродиться",
-            SCREEN_WIDTH // 2,
-            SCREEN_HEIGHT // 2,
-            self.text_color,
-            font_size=20,
-            anchor_x="center"
-        )
-
-        # Определяем цвет кнопки (при наведении меняется)
-        button_color = self.button_hover_color if self.is_button_hovered else self.button_color
-
-        # Кнопка респавна
-        rect = arcade.rect.XYWH(
-            self.respawn_button_x,
-            self.respawn_button_y,
-            self.respawn_button_width,
-            self.respawn_button_height
-        )
-
-        # Фон кнопки
-        arcade.draw_rect_filled(rect, button_color)
-
-        # Рамка кнопки
-        arcade.draw_rect_outline(
-            rect,
-            self.button_border_color,
-            border_width=2
-        )
-
-        # Текст на кнопке
-        arcade.draw_text(
-            "Переродиться",
-            self.respawn_button_x,
-            self.respawn_button_y,
-            self.text_color,
-            font_size=20,
-            anchor_x="center",
-            anchor_y="center",
-            bold=True
-        )
-
-        # Подсказка про клавишу R
-        arcade.draw_text(
-            "Или нажмите клавишу R",
-            SCREEN_WIDTH // 2,
-            self.respawn_button_y - 70,
-            arcade.color.LIGHT_GRAY,
-            font_size=16,
-            anchor_x="center"
-        )
-
-
 class Hero(arcade.Sprite):
     def __init__(self, x, y, speed):
         super().__init__()
@@ -1283,10 +708,963 @@ class Monster(arcade.Sprite):
             self.walk_animation[self.cur_texture_index].flip_horizontally()
 
 
+class GridGame(arcade.Window):
+    def __init__(self):
+        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, antialiasing=True)
+        arcade.set_background_color(arcade.color.SKY_BLUE)
+
+        # Камеры: мир и GUI
+        self.world_camera = arcade.camera.Camera2D()
+        self.gui_camera = arcade.camera.Camera2D()
+
+        # Данные уровня
+        self.tile_map = None
+        self.player_list = arcade.SpriteList()
+        self.player = None
+        self.world_width = None
+        self.world_height = None
+
+        self.is_jumping = False
+        self.can_jump = False
+        self.player_list = None
+        self.first_blocks_hit_list = arcade.SpriteList()
+        self.sprite_lists = {}
+        self.all_blocks = arcade.SpriteList()
+        self.is_breaking_block = False
+        self.hold_duration = 10
+
+        # Система инвентаря
+        self.inventory = InventorySystem(self)
+
+        # Экран респавна
+        self.respawn_screen = RespawnScreen(self)
+
+        # Экран паузы
+        self.pause_screen = PauseScreen(self)
+
+        self.sound_player = None
+    def setup(self):
+        # СОЗДАЕМ И СОХРАНЯЕМ ВСЕ СПРАЙТ-ЛИСТЫ
+        self.create_sprite_lists()
+
+        # СОЗДАЕМ ИГРОКА
+        self.player_start_x = 200
+        self.player_start_y = 1400
+        self.player = Hero(self.player_start_x, self.player_start_y, 200)
+        self.player.scale = 0.24
+        self.player_list.append(self.player)
+
+        # МОНСТР
+        monster = Monster(400, 700, speed=60, damage=10)
+        monster.setup_physics(self.sprite_lists['collisions'])
+        monster.scale = 0.32
+        self.monster_list.append(monster)
+
+        # Уточняем размеры мира по карте
+        self.world_width = int(self.tile_map.width * self.tile_map.tile_width * TILE_SCALING)
+        self.world_height = int(self.tile_map.height * self.tile_map.tile_height * TILE_SCALING)
+
+        # Физический движок
+        self.physics_engine = arcade.PhysicsEnginePlatformer(
+            self.player, self.sprite_lists['collisions'],
+            gravity_constant=GRAVITY
+        )
+
+        # Загрузка музыки
+        self.grass_sound = arcade.load_sound("music/grass.mp3")
+        self.grass2_sound = arcade.load_sound("music/grass2.mp3")
+        self.wood_sound = arcade.load_sound("music/wood.mp3")
+        self.stone_sound = arcade.load_sound("music/stone.mp3")
+        self.craft_sound = arcade.load_sound("music/stone.mp3")  # Можно заменить на другой звук
+
+    def create_sprite_lists(self):
+        """Создание всех спрайт-листов"""
+        # Создаем каждый спрайт-лист отдельно
+        # Загружаем уровень из TMX-файла
+        self.tile_map = arcade.load_tilemap("test_map_minecraft.tmx", scaling=TILE_SCALING)
+
+        self.player_list = arcade.SpriteList()
+        self.cracks_list = arcade.SpriteList()
+        self.monster_list = arcade.SpriteList()
+
+        for block_name in ['earth', 'stone', 'coal', 'iron', 'gold',
+                           'diamonds', 'wood', 'flowers', 'foliage', 'collisions']:
+            if block_name not in self.sprite_lists:
+                self.sprite_lists[block_name] = self.tile_map.sprite_lists[block_name]
+
+        for sprite_list in self.sprite_lists.values():
+            self.all_blocks.extend(sprite_list)
+
+    def on_draw(self):
+        """Отрисовка экрана."""
+        self.clear()
+
+        # 1) Мир
+        self.world_camera.use()
+        for name, sprite_list in self.sprite_lists.items():
+            if name != 'collisions':
+                sprite_list.draw()
+
+        self.cracks_list.draw()
+        self.player_list.draw()
+        self.monster_list.draw()
+
+        # 2) GUI
+        self.gui_camera.use()
+
+        if self.player and self.player.is_alive:
+            bar_width = 200
+            bar_height = 20
+
+            health_ratio = max(0, self.player.health / self.player.max_health)
+            health_width = int(bar_width * health_ratio)
+
+            x = 20
+            y = SCREEN_HEIGHT - 40
+
+            # Фон
+            bg_rect = arcade.rect.XYWH(x + bar_width // 2, y, bar_width, bar_height)
+            arcade.draw_rect_filled(bg_rect, arcade.color.DARK_RED)
+
+            # Текущее здоровье
+            hp_rect = arcade.rect.XYWH(x + health_width // 2, y, health_width, bar_height)
+            arcade.draw_rect_filled(hp_rect, arcade.color.GREEN)
+
+            # Рамка
+            frame_rect = arcade.rect.XYWH(x + bar_width // 2, y, bar_width, bar_height)
+            arcade.draw_rect_outline(frame_rect, arcade.color.BLACK, 2)
+
+        # Отрисовка экрана респавна
+        self.respawn_screen.draw()
+
+        # Отрисовка экрана паузы
+        self.pause_screen.draw()
+
+        # Отрисовка инвентаря и окна крафта (если игрок жив и не на экране респавна)
+        if (self.player and self.player.is_alive and
+                not self.respawn_screen.is_visible and
+                not self.pause_screen.is_visible):
+            self.inventory.draw()
+
+            # Подсказка для открытия крафта
+            if not self.inventory.crafting_window.is_visible:
+                help_text = Text(
+                    text="Нажмите E для открытия крафта:",
+                    x=SCREEN_WIDTH // 2,
+                    y=85,
+                    color=arcade.color.LIGHT_GRAY,
+                    font_size=16,
+                    anchor_x="center"
+                )
+                help_text.draw()
+
+
+    def on_update(self, dt: float):
+        # Если игра на паузе, не обновляем игровую логику
+        if self.pause_screen.is_visible:
+            return
+        self.physics_engine.update()
+
+        # Анимация игрока
+        self.player_list.update_animation(dt)
+        self.player_list.update(dt)
+
+        # Обновление трещины
+        if self.is_breaking_block:
+            release_time = time.time()
+            self.hold_duration = release_time - self.press_time
+            if self.hold_duration > self.time_digging:
+                self.remove_blocks_and_cracks()
+            else:
+                for crack in self.cracks_list:
+                    crack.update_animation(dt)
+        else:
+            for crack in self.cracks_list:
+                crack.remove_from_sprite_lists()
+
+        if not self.player:
+            return
+
+        if self.player.health <= 0 and self.player.is_alive:
+            self.player.is_alive = False
+            self.player.remove_from_sprite_lists()
+            self.respawn_screen.show()  # Показываем экран респавна
+
+        # Если виден экран респавна, не обновляем остальную игру
+        if self.respawn_screen.is_visible:
+            return
+
+        # Движение камеры
+        cam_x, cam_y = self.world_camera.position
+
+        # Не показываем «пустоту» за краями карты
+        half_w = self.world_camera.viewport_width / 2
+        half_h = self.world_camera.viewport_height / 2
+        target_x = max(half_w, min(self.world_width - half_w, self.player.center_x))
+        target_y = max(half_h, min(self.world_height - half_h, self.player.center_y))
+
+        # Плавное перемещение
+        smooth_x = (1 - CAMERA_LERP) * cam_x + CAMERA_LERP * target_x
+        smooth_y = (1 - CAMERA_LERP) * cam_y + CAMERA_LERP * target_y
+
+        self.world_camera.position = (smooth_x, smooth_y)
+
+        self.monster_list.update_animation(dt)
+
+        for monster in self.monster_list:
+            monster.update(dt, self.player)
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        """Обработка нажатия мыши"""
+        # Обновляем позицию мыши для экрана респавна
+        self.respawn_screen.update_mouse_position(x, y)
+
+        # Обновляем позицию мыши для экрана паузы
+        self.pause_screen.update_mouse_position(x, y)
+
+        # Проверяем клик по кнопке респавна
+        if self.respawn_screen.check_button_click(x, y):
+            self.respawn_player()
+            return
+
+        # Проверяем клик по кнопкам паузы
+        if self.pause_screen.check_button_click(x, y):
+            return
+
+
+        # Обработка кликов в остальной игре только если игрок жив
+        if not self.player or not self.player.is_alive:
+            return
+
+        # Проверяем клики в окне крафта
+        if self.inventory.crafting_window.is_visible:
+            if self.inventory.on_mouse_press(x, y, button, modifiers):
+                return
+
+        # изменение координат с учётом движения камеры
+        x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
+        if button == arcade.MOUSE_BUTTON_LEFT:
+            # проверка на близость к игроку
+            if (self.player.center_x - 100 <= x <= self.player.center_x + 100 and
+                    self.player.center_y - 100 <= y <= self.player.center_y + 100):
+                # добавляем в список все нажатые блоки
+                self.first_blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)
+                for block in self.first_blocks_hit_list:
+                    for name, list in self.sprite_lists.items():
+                        # по имени находим информацию о блоке
+                        if block in list and name != 'collisions':
+                            self.name = name
+
+                            if not self.sound_player:
+                                music = BLOCKS_DATA[self.name][1]
+                                self.sound_player = arcade.play_sound(
+                                    eval(f'self.{music}_sound'),
+                                    loop=True)
+                            selected_block_name = self.inventory.get_selected_block()
+                            coef = 1
+                            if selected_block_name:
+                                if selected_block_name in WEAPON.keys():
+                                    if self.name in WEAPON[selected_block_name]['object']:
+                                        coef = WEAPON[selected_block_name]['damage']
+                            self.time_digging = BLOCKS_DATA[self.name][0] / coef
+                            speed_animation_digging = BLOCKS_DATA[self.name][2]
+
+                            # создаём трещину
+                            crack = Crack(block.center_x, block.center_y,
+                                          self.time_digging / speed_animation_digging)
+                            self.is_breaking_block = True
+                            self.cracks_list.append(crack)
+                            self.press_time = time.time()
+
+        if button == arcade.MOUSE_BUTTON_RIGHT:
+            if (self.player.center_x - 140 <= x <= self.player.center_x + 140 and
+                    self.player.center_y - 140 <= y <= self.player.center_y + 140):
+                self.inventory.remove_block(x, y, self)
+
+    def on_mouse_motion(self, x, y, dx, dy):
+        """Обработка движения мыши"""
+        # Обновляем позицию мыши для экрана респавна
+        self.respawn_screen.update_mouse_position(x, y)
+
+        # Обновляем позицию мыши для экрана паузы (добавил)
+        self.pause_screen.update_mouse_position(x, y)
+
+        if self.is_breaking_block:
+            x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
+            blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)
+            # смотрим, не сместился ли курсор с блока
+            for block in blocks_hit_list:
+                if block not in self.first_blocks_hit_list:
+                    self.remove_blocks_and_cracks()
+
+    def on_mouse_release(self, x, y, button, modifiers):
+        if self.is_breaking_block:
+            self.remove_blocks_and_cracks()
+
+    def remove_blocks_and_cracks(self):
+        """Останавливает копание блока.
+        Удаляет его и трещины, если прошло достаточно времени"""
+        release_time = time.time()
+        self.hold_duration = release_time - self.press_time
+        self.is_breaking_block = False
+        if self.sound_player:
+            arcade.stop_sound(self.sound_player)
+        self.sound_player = None
+
+        if self.hold_duration > self.time_digging:
+            self.hold_duration = 10
+            for crack in self.cracks_list:
+                crack.remove_from_sprite_lists()
+            for block in self.first_blocks_hit_list:
+                if block not in self.sprite_lists['collisions']:
+                    if self.name in ['coal', 'iron', 'gold', 'diamonds']:
+                        self.name += '2'
+                    self.inventory.add_block(self.name)
+                block.remove_from_sprite_lists()
+
+        # удаляем только трещины, если прошло меньше нужного времени
+        for crack in self.cracks_list:
+            crack.remove_from_sprite_lists()
+
+    def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
+        """Обработка прокрутки колеса мыши"""
+        if scroll_y > 0:  # Прокрутка вверх
+            self.inventory.scroll_slot(-1)
+        elif scroll_y < 0:  # Прокрутка вниз
+            self.inventory.scroll_slot(1)
+
+    def on_key_press(self, key, modifiers):
+        # Обработка клавиш для экрана респавна
+        if self.respawn_screen.on_key_press(key, modifiers):
+            self.respawn_player()
+            return
+
+        # Обработка клавиш для экрана паузы
+        if self.pause_screen.on_key_press(key, modifiers):
+            return
+
+        # Проверяем обработку клавиш инвентарем (крафт)
+        if self.inventory.on_key_press(key, modifiers):
+            return
+
+        # Обработка игровых клавиш только если игрок жив и игра не на паузе
+        if (not self.player or not self.player.is_alive or
+                    self.pause_screen.is_visible):
+            return
+
+        # прыжок
+        if key in (arcade.key.W, arcade.key.UP):
+            if self.physics_engine.can_jump():
+                self.player.dy = 6
+
+        # движение
+        elif key in (arcade.key.A, arcade.key.LEFT):
+            self.player.dx = -1
+            self.player.is_walking = True
+            self.player.current_side = Side.LEFT
+        elif key in (arcade.key.D, arcade.key.RIGHT):
+            self.player.dx = 1
+            self.player.is_walking = True
+            self.player.current_side = Side.RIGHT
+
+        if key == arcade.key.ESCAPE:
+            if not self.pause_screen.is_visible:
+                self.pause_screen.show()
+            else:
+                self.pause_screen.hide()
+
+    def on_key_release(self, key, modifiers):
+        if key in (arcade.key.W, arcade.key.UP):
+            self.player.dy = 0
+        elif key in (arcade.key.A, arcade.key.LEFT):
+            self.player.dx = 0
+        elif key in (arcade.key.S, arcade.key.DOWN):
+            self.player.dy = 0
+        elif key in (arcade.key.D, arcade.key.RIGHT):
+            self.player.dx = 0
+        if self.player.dx == 0 and self.player.dy == 0:
+            self.player.is_walking = False
+
+        if not self.player.is_alive:
+            return
+
+    def create_block_at_position(self, block_name, x, y):
+        """Создает блок в указанной позиции"""
+        # Преобразуем координаты в координаты сетки
+        actual_tile_size = self.tile_map.tile_width * TILE_SCALING
+        grid_x1 = round(x / actual_tile_size) * actual_tile_size + 32
+        grid_x2 = round(x / actual_tile_size) * actual_tile_size - 32
+        grid_x = grid_x1 if abs(x - grid_x1) < abs(x - grid_x2) else grid_x2
+        grid_y1 = round(y / actual_tile_size) * actual_tile_size + 32
+        grid_y2 = round(y / actual_tile_size) * actual_tile_size - 32
+        grid_y = grid_y1 if abs(y - grid_y1) < abs(y - grid_y2) else grid_y2
+
+        # Проверяем, нет ли уже блока в этой позиции
+        point = (grid_x, grid_y)
+        existing_blocks = arcade.get_sprites_at_point(point, self.all_blocks)
+
+        if existing_blocks:
+            return False  # Место занято
+
+        # Проверяем, чтобы блок не ставился внутри игрока
+        player_rect = arcade.LRBT(
+            self.player.left - 5,
+            self.player.right + 5,
+            self.player.bottom - 5,
+            self.player.top + 5
+        )
+
+        if player_rect.left <= grid_x <= player_rect.right and player_rect.bottom <= grid_y <= player_rect.top:
+            return False  # Нельзя ставить блок внутри игрока
+
+        # Создаем блок в зависимости от типа
+        block = arcade.Sprite(
+            f"minecraft_blocks/{block_name}.webp",
+            scale=TILE_SCALING
+        )
+
+        block.center_x = grid_x
+        block.center_y = grid_y
+
+        # Добавляем блок только если это блок с коллизией
+        if block_name in ['earth', 'stone', 'wood', 'foliage', 'wooden_planks',
+                          'oven', 'oven2', 'stone_bricks', 'glass']:
+            collision_block = arcade.Sprite(
+                f"minecraft_blocks/Border_29_EE1.webp",
+                scale=TILE_SCALING
+            )
+            collision_block.center_x = grid_x
+            collision_block.center_y = grid_y
+            self.sprite_lists['collisions'].append(collision_block)
+
+        # Для новых предметов крафта
+        if block_name not in self.sprite_lists:
+            self.sprite_lists[block_name] = arcade.SpriteList()
+        self.sprite_lists[block_name].append(block)
+
+        # Обновляем общий список всех блоков
+        self.update_all_blocks_list()
+
+        return True
+
+    def update_all_blocks_list(self):
+        """Обновляет общий список всех блоков"""
+        self.all_blocks.clear()
+        for sprite_list in self.sprite_lists.values():
+            self.all_blocks.extend(sprite_list)
+
+    def respawn_player(self):
+        """Перерождение игрока"""
+        self.player = Hero(self.player_start_x, self.player_start_y, 200)
+        self.player.scale = 0.24
+        self.player_list.append(self.player)
+        self.player.health = self.player.max_health
+        self.player.is_alive = True
+
+        # Скрываем экран респавна
+        self.respawn_screen.hide()
+
+        # Пересоздаём физику
+        self.physics_engine = arcade.PhysicsEnginePlatformer(
+            self.player,
+            self.sprite_lists['collisions'],
+            gravity_constant=GRAVITY
+        )
+
+    def on_close(self):
+        """Вызывается при закрытии окна"""
+        try:
+            super().on_close()
+            menu = MenuWindow()
+            arcade.run()
+        except pyglet.gl.lib.GLException:
+            pass
+
+
+class RespawnScreen:
+    """Класс для экрана респавна в конце игры"""
+
+    def __init__(self, window):
+        self.window = window
+        self.is_visible = False
+
+        # Позиция и размеры кнопки респавна
+        self.respawn_button_x = SCREEN_WIDTH // 2
+        self.respawn_button_y = SCREEN_HEIGHT // 2 - 60
+        self.respawn_button_width = 200
+        self.respawn_button_height = 50
+
+        # Цвета
+        self.background_color = (0, 0, 0, 180)  # Полупрозрачный черный
+        self.title_color = arcade.color.RED
+        self.text_color = arcade.color.WHITE
+        self.button_color = arcade.color.BLUE_GRAY
+        self.button_hover_color = arcade.color.LIGHT_BLUE
+        self.button_border_color = arcade.color.BLACK
+
+        # Состояние кнопки
+        self.is_button_hovered = False
+
+    def show(self):
+        """Показать экран респавна"""
+        self.is_visible = True
+
+    def hide(self):
+        """Скрыть экран респавна"""
+        self.is_visible = False
+        self.is_button_hovered = False
+
+    def update_mouse_position(self, x, y):
+        """Обновить позицию мыши для определения наведения на кнопку"""
+        if not self.is_visible:
+            return
+
+        # Проверяем, находится ли курсор над кнопкой
+        left = self.respawn_button_x - self.respawn_button_width / 2
+        right = self.respawn_button_x + self.respawn_button_width / 2
+        bottom = self.respawn_button_y - self.respawn_button_height / 2
+        top = self.respawn_button_y + self.respawn_button_height / 2
+
+        self.is_button_hovered = (left <= x <= right and bottom <= y <= top)
+
+    def check_button_click(self, x, y):
+        """Проверить, была ли нажата кнопка респавна"""
+        if not self.is_visible:
+            return False
+
+        left = self.respawn_button_x - self.respawn_button_width / 2
+        right = self.respawn_button_x + self.respawn_button_width / 2
+        bottom = self.respawn_button_y - self.respawn_button_height / 2
+        top = self.respawn_button_y + self.respawn_button_height / 2
+
+        if left <= x <= right and bottom <= y <= top:
+            self.hide()
+            return True
+
+        return False
+
+    def on_key_press(self, key, modifiers):
+        """Обработка нажатий клавиш"""
+        if not self.is_visible:
+            return False
+
+        if key == arcade.key.R:
+            # Респавн по клавише R
+            self.hide()
+            return True
+
+        return False
+
+    def draw(self):
+        """Отрисовка экрана респавна"""
+        if not self.is_visible:
+            return
+
+        # Используем камеру GUI
+        self.window.gui_camera.use()
+
+        # Полупрозрачный фон
+        arcade.draw_lbwh_rectangle_filled(
+            0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
+            self.background_color
+        )
+
+        # Текст смерти
+        death_text = Text(
+            text="Вы умерли",
+            x=SCREEN_WIDTH // 2,
+            y=SCREEN_HEIGHT // 2 + 30,
+            color=self.title_color,
+            font_size=40,
+            anchor_x="center",
+            bold=True
+        )
+        death_text.draw()
+
+
+        death_text2 = Text(
+            text="Нажмите кнопку, чтобы переродиться",
+            x=SCREEN_WIDTH // 2,
+            y=SCREEN_HEIGHT // 2,
+            color=self.text_color,
+            font_size=20,
+            anchor_x="center"
+        )
+        death_text2.draw()
+
+        # Определяем цвет кнопки (при наведении меняется)
+        button_color = self.button_hover_color if self.is_button_hovered else self.button_color
+
+        # Кнопка респавна
+        rect = arcade.rect.XYWH(
+            self.respawn_button_x,
+            self.respawn_button_y,
+            self.respawn_button_width,
+            self.respawn_button_height
+        )
+
+        # Фон кнопки
+        arcade.draw_rect_filled(rect, button_color)
+
+        # Рамка кнопки
+        arcade.draw_rect_outline(
+            rect,
+            self.button_border_color,
+            border_width=2
+        )
+
+        # Текст на кнопке
+        text_on_button = Text(
+            text="Переродиться",
+            x=self.respawn_button_x,
+            y=self.respawn_button_y,
+            color=self.text_color,
+            font_size=20,
+            anchor_x="center",
+            anchor_y="center",
+            bold = True
+        )
+        text_on_button.draw()
+
+        # Подсказка про клавишу R
+        help_text = Text(
+            text="Или нажмите клавишу R",
+            x=self.respawn_button_x,
+            y=self.respawn_button_y - 70,
+            color=arcade.color.LIGHT_GRAY,
+            font_size=16,
+            anchor_x="center"
+        )
+        help_text.draw()
+
+
+class MenuWindow(arcade.Window):
+    def __init__(self):
+        # Инициализируем окно
+        super().__init__(width=SCREEN_WIDTH, height=SCREEN_HEIGHT, title="Меню игры")
+
+        # UIManager — сердце GUI
+        self.manager = UIManager()
+        self.manager.enable()  # Включить, чтоб виджеты работали
+
+        # Layout для организации — как полки в шкафу
+        self.anchor_layout = UIAnchorLayout()  # Центрирует виджеты
+        self.box_layout = UIBoxLayout(vertical=True, space_between=10)  # Вертикальный стек
+
+        # Добавим все виджеты в box, потом box в anchor
+        self.setup_widgets()  # Функция ниже
+
+        self.anchor_layout.add(self.box_layout)  # Box в anchor
+        self.manager.add(self.anchor_layout)  # Всё в manager
+
+        self.background_texture = arcade.load_texture("menu/background.jpg")
+
+        # Для переключения на игровое окно
+        self.game_window = None
+
+    def setup_widgets(self):
+        overlay_texture = arcade.load_texture("menu/title.png")
+        overlay_widget = arcade.gui.UITextureButton(
+            width=585, height=150,
+            texture=overlay_texture
+        )
+        self.box_layout.add(overlay_widget)
+
+        texture_normal = arcade.load_texture("menu/button_normal.jpg")
+        texture_hovered = arcade.load_texture("menu/button_hover.jpg")
+        texture_pressed = arcade.load_texture("menu/button_press.jpg")
+
+        old_game_button = UITextureButton(texture=texture_normal,
+                                          texture_hovered=texture_hovered,
+                                          texture_pressed=texture_pressed,
+                                          scale=0.2,
+                                          text="Продолжить")
+        old_game_button.on_click = self.start_game
+        self.box_layout.add(old_game_button)
+
+        new_game_button = UITextureButton(texture=texture_normal,
+                                          texture_hovered=texture_hovered,
+                                          texture_pressed=texture_pressed,
+                                          scale=0.2,
+                                          text="Новая игра")
+        new_game_button.on_click = lambda event: print("Новая игра!")  # Не только лямбду, конечно
+        self.box_layout.add(new_game_button)
+
+        label = UILabel(text="Выбери скин:",
+                        font_size=15,
+                        text_color=arcade.color.WHITE,
+                        width=300,
+                        align="center")
+        self.box_layout.add(label)
+
+        dropdown = UIDropdown(options=["Стив", "Алекс"], width=200)
+        dropdown.on_change = lambda value: print(f"Выбрано: {value}")
+        self.box_layout.add(dropdown)
+
+        label = UILabel(text="Громкость:",
+                        font_size=15,
+                        text_color=arcade.color.WHITE,
+                        width=300,
+                        align="center")
+        self.box_layout.add(label)
+
+        slider = UISlider(width=200, height=20, min_value=0, max_value=100, value=50)
+        slider.on_change = lambda value: print(f"Слайдер: {value}")
+        self.box_layout.add(slider)
+
+    def start_game(self, event=None):
+        # Закрываем меню и открываем игровое окно
+        # from game_window import GameWindow  # Импортируем здесь, чтобы избежать циклического импорта
+        super().on_close()
+        self.game_window = GridGame()
+        self.game_window.setup()
+        arcade.run()  # Запускаем игровое окно
+
+    def on_draw(self):
+        self.clear()
+
+        if self.background_texture:
+            arcade.draw_texture_rect(
+                self.background_texture,
+                arcade.LBWH(0, 0,
+                            self.width, self.height))
+
+        self.manager.draw()  # Рисуй GUI поверх всего
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        pass  # Для кликов, но manager сам обрабатывает
+
+    def on_update(self, delta_time):
+        """Обновление логики"""
+        pass
+
+    def on_key_press(self, key, modifiers):
+        """Обработка нажатия клавиш"""
+        pass
+
+
+class PauseScreen:
+    """Класс для экрана паузы"""
+
+    def __init__(self, window):
+        self.window = window
+        self.is_visible = False
+
+        # Позиция и размеры кнопок
+        self.button_width = 200
+        self.button_height = 50
+        self.button_spacing = 70
+
+        # Цвета
+        self.background_color = (0, 0, 0, 180)  # Полупрозрачный черный
+        self.title_color = arcade.color.GOLD
+        self.text_color = arcade.color.WHITE
+        self.button_color = arcade.color.BLUE_GRAY
+        self.button_hover_color = arcade.color.LIGHT_BLUE
+        self.button_border_color = arcade.color.BLACK
+
+        # Состояния кнопок
+        self.continue_button_hovered = False
+        self.save_button_hovered = False
+        self.exit_button_hovered = False
+        self.craft_button_hovered = False
+
+    def show(self):
+        """Показать экран паузы"""
+        self.is_visible = True
+
+    def hide(self):
+        """Скрыть экран паузы"""
+        self.is_visible = False
+        self.continue_button_hovered = False
+        self.save_button_hovered = False
+        self.exit_button_hovered = False
+        self.craft_button_hovered = False
+
+    def update_mouse_position(self, x, y):
+        """Обновить позицию мыши для определения наведения на кнопки"""
+        if not self.is_visible:
+            return
+
+        # Центр экрана
+        center_x = SCREEN_WIDTH // 2
+        center_y = SCREEN_HEIGHT // 2
+
+        # Позиции кнопок
+        continue_y = center_y + 30
+        save_y = center_y - 40
+        craft_y = center_y - 110
+        exit_y = center_y - 180
+
+        # Проверяем наведение на каждую кнопку
+        self.continue_button_hovered = self._is_point_in_button(x, y, center_x, continue_y)
+        self.save_button_hovered = self._is_point_in_button(x, y, center_x, save_y)
+        self.craft_button_hovered = self._is_point_in_button(x, y, center_x, craft_y)
+        self.exit_button_hovered = self._is_point_in_button(x, y, center_x, exit_y)
+
+    def _is_point_in_button(self, x, y, button_x, button_y):
+        """Проверяет, находится ли точка внутри кнопки"""
+        left = button_x - self.button_width / 2
+        right = button_x + self.button_width / 2
+        bottom = button_y - self.button_height / 2
+        top = button_y + self.button_height / 2
+
+        return left <= x <= right and bottom <= y <= top
+
+    def check_button_click(self, x, y):
+        """Проверить, была ли нажата какая-либо кнопка"""
+        if not self.is_visible:
+            return False
+
+        center_x = SCREEN_WIDTH // 2
+        center_y = SCREEN_HEIGHT // 2
+
+        # Позиции кнопок
+        continue_y = center_y + 30
+        save_y = center_y - 40
+        craft_y = center_y - 110
+        exit_y = center_y - 180
+
+        # Проверяем клик по каждой кнопке
+        if self._is_point_in_button(x, y, center_x, continue_y):
+            self.hide()
+            return True
+
+        if self._is_point_in_button(x, y, center_x, save_y):
+            print("Сохранение игры...")
+            return True
+
+        if self._is_point_in_button(x, y, center_x, craft_y):
+            print("Открытие инструкции по крафту...")
+            return True
+
+        if self._is_point_in_button(x, y, center_x, exit_y):
+            print("Выход в меню...")
+            self.window.on_close()
+            return True
+
+        return False
+
+    def on_key_press(self, key, modifiers):
+        """Обработка нажатий клавиш"""
+        if not self.is_visible:
+            return False
+
+        if key == arcade.key.ESCAPE:
+            # ESC для продолжения игры
+            self.hide()
+            return True
+
+        return False
+
+    def draw(self):
+        """Отрисовка экрана паузы"""
+        if not self.is_visible:
+            return
+
+        # Используем камеру GUI
+        self.window.gui_camera.use()
+
+        # Полупрозрачный фон
+        arcade.draw_lbwh_rectangle_filled(
+            0, 0, SCREEN_WIDTH, SCREEN_HEIGHT,
+            self.background_color
+        )
+
+        # Заголовок
+        title_text = Text(
+            text="ИГРА НА ПАУЗЕ",
+            x=SCREEN_WIDTH // 2,
+            y=SCREEN_HEIGHT // 2 + 100,
+            color=self.title_color,
+            font_size=40,
+            anchor_x="center",
+            bold=True
+        )
+        title_text.draw()
+
+        # Центр экрана для кнопок
+        center_x = SCREEN_WIDTH // 2
+        center_y = SCREEN_HEIGHT // 2
+
+        # Кнопка "Продолжить"
+        self._draw_button(
+            center_x, center_y + 30,
+            "Продолжить",
+            self.continue_button_hovered
+        )
+
+        # Кнопка "Сохранить"
+        self._draw_button(
+            center_x, center_y - 40,
+            "Сохранить",
+            self.save_button_hovered
+        )
+
+        # Кнопка "Инструкция по крафту"
+        self._draw_button(
+            center_x, center_y - 110,
+            "Инструкция по крафту",
+            self.craft_button_hovered
+        )
+
+        # Кнопка "Выйти"
+        self._draw_button(
+            center_x, center_y - 180,
+            "Выйти",
+            self.exit_button_hovered
+        )
+
+        # Подсказка про клавишу ESC
+        help_text = Text(
+            text="Нажмите ESC для продолжения",
+            x=SCREEN_WIDTH // 2,
+            y=50,
+            color=arcade.color.LIGHT_GRAY,
+            font_size=16,
+            anchor_x="center"
+        )
+        help_text.draw()
+
+    def _draw_button(self, x, y, text, is_hovered):
+        """Рисует одну кнопку"""
+        # Определяем цвет кнопки
+        button_color = self.button_hover_color if is_hovered else self.button_color
+
+        # Кнопка
+        rect = arcade.rect.XYWH(
+            x,
+            y,
+            self.button_width,
+            self.button_height
+        )
+
+        # Фон кнопки
+        arcade.draw_rect_filled(rect, button_color)
+
+        # Рамка кнопки
+        arcade.draw_rect_outline(
+            rect,
+            self.button_border_color,
+            border_width=2
+        )
+
+        # Текст на кнопке
+        button_text = Text(
+            text=text,
+            x=x,
+            y=y,
+            color=self.text_color,
+            font_size=18,
+            anchor_x="center",
+            anchor_y="center",
+            bold=True
+        )
+        button_text.draw()
+
 def main():
     # Создаем и запускаем игру
-    game = GridGame()
-    game.setup()
+    menu = MenuWindow()
     arcade.run()
 
 
