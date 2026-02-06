@@ -772,6 +772,7 @@ class GridGame(arcade.Window):
             monster = Monster(400, 700, speed=60, damage=10)
             monster.setup_physics(self.sprite_lists['collisions'])
             monster.scale = 0.32
+            self.monster_list.append(monster)
 
         # Уточняем размеры мира по карте
         self.world_width = int(self.tile_map.width * self.tile_map.tile_width * TILE_SCALING)
@@ -1421,7 +1422,7 @@ class GridGame(arcade.Window):
 
     def respawn_player(self):
         """Перерождение игрока"""
-        self.player = Hero(self.player_start_x, self.player_start_y, 200)
+        self.player = Hero(self.player_start_x, self.player_start_y, 200, self.skin)
         self.player.scale = 0.24
         self.player_list.append(self.player)
         self.player.health = self.player.max_health
