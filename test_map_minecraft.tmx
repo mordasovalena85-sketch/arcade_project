@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="100" height="50" tilewidth="160" tileheight="160" infinite="0" nextlayerid="18" nextobjectid="1">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="100" height="50" tilewidth="160" tileheight="160" infinite="0" nextlayerid="20" nextobjectid="1">
  <tileset firstgid="1" source="test_tailes_minecraft.tsx"/>
- <layer id="7" name="earth" width="100" height="50">
+ <layer id="18" name="earth" width="100" height="50">
   <data encoding="base64" compression="zlib">
-   eJzt1MsOgyAQBVDr/390t4SUhzCIjeckk3ShOJeBHgcAAAAAAAAAALzPubuBlzuz+iS/uU+6/6W6eyb52ajVv8vvQG+t3oOZvkrrRNUqV7OuuC+lzDP9pCLy1c5i1HyiZjF7X6K+n66V9rBiHq35jFQtz2yWXpFnIu93NsOOyq1YsyT6fuYZIv73nlp51tl5zOzTVfm7u/dyJGdtFq3cLTP7MmL3vv7KMJrr6jut53rmGT2P2vqr3PmtUb1354m9v5l5AAAAAADA83wBchoClg==
+   eJzt00sOgzAMBcBw/0t3X6UBQmynYkZiRcCfB60BAAAAAAAAAADUOqobeLljcJFjlEFlJrv2FeHOrJk7WNXPivmyMt+hx5X1s/KIyOfKPBn9ReSxYoaKK2I3d0TM8s95zM66Io+MvL/rPKlbtfPeDO3Hud4zZ57sZUb1XnszrPiGr56fvR+Vx+j9UTJrzbr67+zY+5vJAwAAAAAA9vMBSWwB4A==
   </data>
  </layer>
  <layer id="9" name="stone" width="100" height="50">
@@ -49,6 +49,11 @@
  <layer id="17" name="collisions" width="100" height="50">
   <data encoding="base64" compression="zlib">
    eJztmsERhDAMxNII/bdJAzcQOBwrtjSj1332Ip4+xhiHohQG9mBhDxb2YGEPFvZgYQ8W9mBhDxb2YGEPFvZgYQ8W9mBhDxb2YGEPFvZgYQ8W9mBhDxaVe+z4vyr1qHA/s9veXxBvmt7eWu3Yg3pv9sWeL2/qVnyLhI2R7xXVI6IPZV/khlU96M4SvSH7HQjOkr2zi7ZgOdPCJoweV79n767q1Xvfkb29ov+Svb+DT8ne28EnZG/t4izZO7trD1VVVVVVVVXVdZ7iexLF
+  </data>
+ </layer>
+ <layer id="19" name="grass" width="100" height="50">
+  <data encoding="base64" compression="zlib">
+   eJzt1MEKwCAIANDo/z96d2EdVm623gOhQ4ia1BoAAAAAAAAAAJynf13A4XqIFs7ki/Mf3XtT3I1R7O5pL9kzmKnrLs+qyLIq90yeHfc8o9bVPVeaZeX/tPL+VamD/LeotHfVmRMAAAAAAADA/13GlgC5
   </data>
  </layer>
 </map>

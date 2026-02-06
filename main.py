@@ -5,13 +5,11 @@ import time
 import pyglet
 import json
 import os
-from typing import Dict, List, Any, Optional
 from arcade import Text
 from arcade.gui import (UIManager, UIAnchorLayout, UIBoxLayout,
                         UITextureButton, UILabel, UIDropdown, UISlider)
+
 from globals import BLOCKS_DATA, CRAFTING_RECIPES, WEAPON
-
-
 
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 600
@@ -346,16 +344,6 @@ class CraftingWindow:
 
             self.result_slot.draw()
 
-            # # Подсказка для крафта
-            # if self.result_slot.block_name:
-            #     arcade.draw_text(
-            #         "Нажмите C для крафта",
-            #         SCREEN_WIDTH // 2,
-            #         window_y + 40,
-            #         arcade.color.LIGHT_GREEN,
-            #         18,
-            #         anchor_x="center"
-            #     )
 
         # Подсказка для закрытия
         help_text = Text(
@@ -552,20 +540,31 @@ class InventorySystem:
 
         return False
 
+
 class Hero(arcade.Sprite):
-    def __init__(self, x, y, speed):
+    def __init__(self, x, y, speed, skin):
         super().__init__()
         self.center_x = x
         self.center_y = y
         self.is_walking = False
         self.current_side = Side.RIGHT
-        self.texture_idle = arcade.load_texture(
-            "skin/resized-Stive_1.png")
+        self.skin = skin
+        if self.skin == 'Стив':
+            self.texture_idle = arcade.load_texture(
+                "skin/resized-Stive_1.png")
+        else:
+            self.texture_idle = arcade.load_texture(
+                "skin/resized-Alex_1.png")
         self.texture = self.texture_idle
         self.walk_animation = []
-        for i in range(2, 8):
-            self.walk_animation.append(
-                arcade.load_texture(f"skin/resized-Stive_{i}.png"))
+        if self.skin == 'Стив':
+            for i in range(2, 8):
+                self.walk_animation.append(
+                    arcade.load_texture(f"skin/resized-Stive_{i}.png"))
+        else:
+            for i in range(2, 7):
+                self.walk_animation.append(
+                    arcade.load_texture(f"skin/resized-Alex_{i}.png"))
         self.animation_update_speed = 0.15
         self.animation_counter = 0
         self.cur_texture_index = 0
@@ -576,6 +575,7 @@ class Hero(arcade.Sprite):
         self.max_health = 100
         self.health = self.max_health
         self.is_alive = True
+
 
     def update(self, delta_time):
         current_speed = self.speed
@@ -713,9 +713,12 @@ class Monster(arcade.Sprite):
 
 
 class GridGame(arcade.Window):
-    def __init__(self):
+    def __init__(self, skin):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, antialiasing=True)
         arcade.set_background_color(arcade.color.SKY_BLUE)
+
+        self.skin = skin
+
 
         # Камеры: мир и GUI
         self.world_camera = arcade.camera.Camera2D()
@@ -751,6 +754,8 @@ class GridGame(arcade.Window):
 
         self.sound_player = None
 
+        # Оригинальные блоки из карты (для восстановления при сбросе)
+        self.original_blocks = {}
 
     def setup(self):
         # СОЗДАЕМ И СОХРАНЯЕМ ВСЕ СПРАЙТ-ЛИСТЫ
@@ -759,17 +764,15 @@ class GridGame(arcade.Window):
         # СОЗДАЕМ ИГРОКА
         self.player_start_x = 200
         self.player_start_y = 1400
-        self.player = Hero(self.player_start_x, self.player_start_y, 200)
+        self.player = Hero(self.player_start_x, self.player_start_y, 200, self.skin)
         self.player.scale = 0.24
         self.player_list.append(self.player)
 
         # Пытаемся загрузить сохраненную игру
         if not self.load_game():
-            # Если не удалось загрузить, создаем нового монстра
             monster = Monster(400, 700, speed=60, damage=10)
             monster.setup_physics(self.sprite_lists['collisions'])
             monster.scale = 0.32
-            self.monster_list.append(monster)
 
         # Уточняем размеры мира по карте
         self.world_width = int(self.tile_map.width * self.tile_map.tile_width * TILE_SCALING)
@@ -799,12 +802,25 @@ class GridGame(arcade.Window):
         self.monster_list = arcade.SpriteList()
 
         for block_name in ['earth', 'stone', 'coal', 'iron', 'gold',
-                           'diamonds', 'wood', 'flowers', 'foliage', 'collisions']:
+                           'diamonds', 'wood', 'flowers', 'foliage', 'collisions', 'grass']:
             if block_name not in self.sprite_lists:
                 self.sprite_lists[block_name] = self.tile_map.sprite_lists[block_name]
 
+
         for sprite_list in self.sprite_lists.values():
             self.all_blocks.extend(sprite_list)
+
+    def save_original_blocks_state(self):
+        """Сохраняет состояние оригинальных блоков из карты"""
+        self.original_blocks = {}
+        for name, sprite_list in self.sprite_lists.items():
+            if name != 'collisions':
+                self.original_blocks[name] = []
+                for block in sprite_list:
+                    self.original_blocks[name].append({
+                        "x": block.center_x,
+                        "y": block.center_y
+                    })
 
     def on_draw(self):
         """Отрисовка экрана."""
@@ -869,7 +885,6 @@ class GridGame(arcade.Window):
                 )
                 help_text.draw()
 
-
     def on_update(self, dt: float):
         # Если игра на паузе, не обновляем игровую логику
         if self.pause_screen.is_visible:
@@ -926,7 +941,7 @@ class GridGame(arcade.Window):
             monster.update(dt, self.player)
 
     def save_game(self):
-        """Сохраняет текущее состояние игры в JSON файл"""
+        """Сохраняет ПОЛНОЕ текущее состояние мира в JSON файл"""
         try:
             save_data = {
                 "player": {
@@ -942,9 +957,10 @@ class GridGame(arcade.Window):
                     "slots": [],
                     "selected_slot": self.inventory.selected_slot
                 },
-                "blocks": {},
-                "monsters": [],
-                "cracks": []
+                "crafting_grid": [],
+                "crafting_result": {},
+                "world_state": {},  # Новый ключ для полного состояния мира
+                "monsters": []
             }
 
             # Сохраняем инвентарь
@@ -956,7 +972,6 @@ class GridGame(arcade.Window):
                 save_data["inventory"]["slots"].append(slot_data)
 
             # Сохраняем сетку крафта
-            save_data["crafting_grid"] = []
             for slot in self.inventory.crafting_window.grid_slots:
                 slot_data = {
                     "block_name": slot.block_name,
@@ -970,17 +985,27 @@ class GridGame(arcade.Window):
                 "count": self.inventory.crafting_window.result_slot.count
             }
 
-            # Сохраняем позиции блоков по типам
-            for block_name, sprite_list in self.sprite_lists.items():
-                if block_name != 'collisions':  # Не сохраняем коллизионные блоки отдельно
-                    block_positions = []
+            # Сохраняем ПОЛНОЕ состояние мира
+            for name, sprite_list in self.sprite_lists.items():
+                if name != 'collisions':  # Коллизии обрабатываем отдельно
+                    if name not in save_data["world_state"]:
+                        save_data["world_state"][name] = []
+
                     for block in sprite_list:
-                        block_positions.append({
+                        save_data["world_state"][name].append({
                             "x": block.center_x,
                             "y": block.center_y
                         })
-                    if block_positions:  # Сохраняем только если есть блоки этого типа
-                        save_data["blocks"][block_name] = block_positions
+                else:
+                    # Для коллизий сохраняем отдельно
+                    if "collisions" not in save_data["world_state"]:
+                        save_data["world_state"]["collisions"] = []
+
+                    for block in sprite_list:
+                        save_data["world_state"]["collisions"].append({
+                            "x": block.center_x,
+                            "y": block.center_y
+                        })
 
             # Сохраняем монстров
             for monster in self.monster_list:
@@ -988,43 +1013,30 @@ class GridGame(arcade.Window):
                     "position": {
                         "x": monster.center_x,
                         "y": monster.center_y
-                    },
-                    "health": monster.health if hasattr(monster, 'health') else None
+                    }
                 }
                 save_data["monsters"].append(monster_data)
-
-            # Сохраняем трещины (если есть)
-            for crack in self.cracks_list:
-                crack_data = {
-                    "position": {
-                        "x": crack.center_x,
-                        "y": crack.center_y
-                    },
-                    "current_texture": crack.current_texture,
-                    "is_breaking_block": crack.is_breaking_block
-                }
-                save_data["cracks"].append(crack_data)
 
             # Записываем в файл
             with open(self.save_file, 'w', encoding='utf-8') as f:
                 json.dump(save_data, f, indent=4, ensure_ascii=False)
 
-            print(f"Игра сохранена в {self.save_file}")
             return True
 
         except Exception as e:
-            print(f"Ошибка сохранения игры: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def load_game(self):
-        """Загружает сохраненное состояние игры из JSON файла"""
+        """Загружает полное сохраненное состояние мира из JSON файла"""
         if not os.path.exists(self.save_file):
-            print("Сохранение не найдено, начинаем новую игру")
             return False
 
         try:
             with open(self.save_file, 'r', encoding='utf-8') as f:
                 save_data = json.load(f)
+
 
             # Загружаем игрока
             player_data = save_data.get("player", {})
@@ -1034,11 +1046,12 @@ class GridGame(arcade.Window):
                 self.player.health = player_data.get("health", self.player.max_health)
                 self.player.max_health = player_data.get("max_health", 100)
                 self.player.is_alive = player_data.get("is_alive", True)
+            self.player.skin = self.skin
 
             # Загружаем инвентарь
             inventory_data = save_data.get("inventory", {})
             if inventory_data:
-                self.inventory.selected_slot = inventory_data.get("selected_slot", 0)
+                self.inventory.selected_slot = 0
                 slots_data = inventory_data.get("slots", [])
 
                 for i, slot_data in enumerate(slots_data):
@@ -1067,45 +1080,54 @@ class GridGame(arcade.Window):
                 result_slot.count = crafting_result_data.get("count", 0)
                 result_slot.update_score()
                 result_slot.update_texture()
-                self.inventory.crafting_window.current_recipe = None  # Сброс рецепта
+                self.inventory.crafting_window.current_recipe = None
 
-            # Загружаем блоки
-            blocks_data = save_data.get("blocks", {})
-            if blocks_data:
-                # Очищаем существующие блоки (кроме коллизий и игрока)
-                for block_name, sprite_list in self.sprite_lists.items():
-                    if block_name not in ['collisions']:
-                        sprite_list.clear()
+            # ВОССТАНАВЛИВАЕМ ПОЛНОЕ СОСТОЯНИЕ МИРА
+            world_state = save_data.get("world_state", {})
 
-                # Загружаем сохраненные блоки
-                for block_name, positions in blocks_data.items():
-                    if block_name not in self.sprite_lists:
-                        self.sprite_lists[block_name] = arcade.SpriteList()
+            # Очищаем текущие спрайт-листы (кроме игрока)
+            for name in list(self.sprite_lists.keys()):
+                if name != 'collisions':
+                    self.sprite_lists[name].clear()
+                else:
+                    # Коллизии тоже очищаем, но потом восстановим
+                    self.sprite_lists[name].clear()
 
-                    for pos in positions:
+            # Восстанавливаем блоки из сохранения
+            for block_type, blocks_data in world_state.items():
+                if block_type not in self.sprite_lists:
+                    # Создаем новый спрайт-лист для нового типа блока
+                    self.sprite_lists[block_type] = arcade.SpriteList()
+
+                for block_data in blocks_data:
+                    x = block_data.get("x")
+                    y = block_data.get("y")
+
+                    if block_type == 'collisions':
+                        # Создаем блок коллизии
                         block = arcade.Sprite(
-                            f"minecraft_blocks/{block_name}.webp",
+                            f"minecraft_blocks/Border_29_EE1.webp",
                             scale=TILE_SCALING
                         )
-                        block.center_x = pos.get("x", 0)
-                        block.center_y = pos.get("y", 0)
-                        self.sprite_lists[block_name].append(block)
+                    else:
+                        # Создаем обычный блок
+                        block = arcade.Sprite(
+                            f"minecraft_blocks/{block_type}.webp",
+                            scale=TILE_SCALING
+                        )
 
-                        # Если это блок с коллизией, создаем коллизионный блок
-                        if block_name in ['earth', 'stone', 'wood', 'foliage', 'wooden_planks',
-                                          'oven', 'oven2', 'stone_bricks', 'glass']:
-                            collision_block = arcade.Sprite(
-                                f"minecraft_blocks/Border_29_EE1.webp",
-                                scale=TILE_SCALING
-                            )
-                            collision_block.center_x = block.center_x
-                            collision_block.height = block.height
-                            self.sprite_lists['collisions'].append(collision_block)
+                    block.center_x = x
+                    block.center_y = y
+                    self.sprite_lists[block_type].append(block)
+
+            # Обновляем общий список всех блоков
+            self.update_all_blocks_list()
 
             # Загружаем монстров
             monsters_data = save_data.get("monsters", [])
             if monsters_data:
                 self.monster_list.clear()
+
                 for monster_data in monsters_data:
                     pos = monster_data.get("position", {})
                     monster = Monster(
@@ -1116,34 +1138,15 @@ class GridGame(arcade.Window):
                     )
                     monster.setup_physics(self.sprite_lists['collisions'])
                     monster.scale = 0.32
-                    if hasattr(monster, 'health'):
-                        monster.health = monster_data.get("health", 100)
                     self.monster_list.append(monster)
 
-            # Загружаем трещины
-            cracks_data = save_data.get("cracks", [])
-            if cracks_data:
-                self.cracks_list.clear()
-                for crack_data in cracks_data:
-                    pos = crack_data.get("position", {})
-                    crack = Crack(pos.get("x", 0), pos.get("y", 0), speed=0.5)
-                    crack.current_texture = crack_data.get("current_texture", 0)
-                    crack.is_breaking_block = crack_data.get("is_breaking_block", False)
-
-                    if crack.current_texture < len(crack.cracking_animation):
-                        crack.texture = crack.cracking_animation[crack.current_texture]
-
-                    self.cracks_list.append(crack)
-
-            # Обновляем общий список всех блоков
-            self.update_all_blocks_list()
-
-            print(f"Игра загружена из {self.save_file}")
             return True
 
         except Exception as e:
-            print(f"Ошибка загрузки игры: {e}")
+            import traceback
+            traceback.print_exc()
             return False
+
 
     def on_mouse_press(self, x, y, button, modifiers):
         """Обработка нажатия мыши"""
@@ -1161,7 +1164,6 @@ class GridGame(arcade.Window):
         # Проверяем клик по кнопкам паузы
         if self.pause_screen.check_button_click(x, y):
             return
-
 
         # Обработка кликов в остальной игре только если игрок жив
         if not self.player or not self.player.is_alive:
@@ -1246,12 +1248,36 @@ class GridGame(arcade.Window):
             self.hold_duration = 10
             for crack in self.cracks_list:
                 crack.remove_from_sprite_lists()
+
             for block in self.first_blocks_hit_list:
                 if block not in self.sprite_lists['collisions']:
-                    if self.name in ['coal', 'iron', 'gold', 'diamonds']:
-                        self.name += '2'
-                    self.inventory.add_block(self.name)
-                block.remove_from_sprite_lists()
+                    # Находим имя блока, который удаляем
+                    block_type = None
+                    for name, sprite_list in self.sprite_lists.items():
+                        if block in sprite_list and name != 'collisions':
+                            block_type = name
+                            break
+
+                    if block_type:
+                        # Если это руда, добавляем в инвентарь руду
+                        if block_type in ['coal', 'iron', 'gold', 'diamonds', 'stone']:
+                            self.inventory.add_block(block_type + '2')
+                        # Если блок травы, добавляем землю
+                        elif block_type == 'grass':
+                            self.inventory.add_block('earth')
+                        else:
+                            self.inventory.add_block(block_type)
+
+                    # Удаляем блок и его коллизию если есть
+                    block.remove_from_sprite_lists()
+
+                    # Удаляем соответствующую коллизию
+                    collision_blocks = arcade.get_sprites_at_point(
+                        (block.center_x, block.center_y),
+                        self.sprite_lists['collisions']
+                    )
+                    for coll_block in collision_blocks:
+                        coll_block.remove_from_sprite_lists()
 
         # удаляем только трещины, если прошло меньше нужного времени
         for crack in self.cracks_list:
@@ -1280,7 +1306,7 @@ class GridGame(arcade.Window):
 
         # Обработка игровых клавиш только если игрок жив и игра не на паузе
         if (not self.player or not self.player.is_alive or
-                    self.pause_screen.is_visible):
+                self.pause_screen.is_visible):
             return
 
         # прыжок
@@ -1303,6 +1329,11 @@ class GridGame(arcade.Window):
                 self.pause_screen.show()
             else:
                 self.pause_screen.hide()
+
+        # Автосохранение при нажатии F5
+        if key == arcade.key.F5:
+            if self.save_game():
+                print("Игра сохранена (F5)")
 
     def on_key_release(self, key, modifiers):
         if key in (arcade.key.W, arcade.key.UP):
@@ -1359,16 +1390,20 @@ class GridGame(arcade.Window):
 
         # Добавляем блок только если это блок с коллизией
         if block_name in ['earth', 'stone', 'wood', 'foliage', 'wooden_planks',
-                          'oven', 'oven2', 'stone_bricks', 'glass']:
+                          'oven', 'oven2', 'stone_bricks', 'glass', 'grass', 'stone2']:
             collision_block = arcade.Sprite(
                 f"minecraft_blocks/Border_29_EE1.webp",
                 scale=TILE_SCALING
             )
             collision_block.center_x = grid_x
             collision_block.center_y = grid_y
+
+            # Создаем лист коллизий если его нет
+            if 'collisions' not in self.sprite_lists:
+                self.sprite_lists['collisions'] = arcade.SpriteList()
             self.sprite_lists['collisions'].append(collision_block)
 
-        # Для новых предметов крафта
+        # Создаем спрайт-лист для нового типа блока если его нет
         if block_name not in self.sprite_lists:
             self.sprite_lists[block_name] = arcade.SpriteList()
         self.sprite_lists[block_name].append(block)
@@ -1377,6 +1412,7 @@ class GridGame(arcade.Window):
         self.update_all_blocks_list()
 
         return True
+
 
     def update_all_blocks_list(self):
         """Обновляет общий список всех блоков"""
@@ -1413,6 +1449,7 @@ class GridGame(arcade.Window):
             arcade.run()
         except pyglet.gl.lib.GLException:
             pass
+
 
 class RespawnScreen:
     """Класс для экрана респавна в конце игры"""
@@ -1514,7 +1551,6 @@ class RespawnScreen:
         )
         death_text.draw()
 
-
         death_text2 = Text(
             text="Нажмите кнопку, чтобы переродиться",
             x=SCREEN_WIDTH // 2,
@@ -1555,7 +1591,7 @@ class RespawnScreen:
             font_size=20,
             anchor_x="center",
             anchor_y="center",
-            bold = True
+            bold=True
         )
         text_on_button.draw()
 
@@ -1595,6 +1631,8 @@ class MenuWindow(arcade.Window):
         # Для переключения на игровое окно
         self.game_window = None
 
+        self.skin = 'Стив'
+
     def setup_widgets(self):
         overlay_texture = arcade.load_texture("menu/title.png")
         overlay_widget = arcade.gui.UITextureButton(
@@ -1630,9 +1668,27 @@ class MenuWindow(arcade.Window):
                         align="center")
         self.box_layout.add(label)
 
-        dropdown = UIDropdown(options=["Стив", "Алекс"], width=200)
-        dropdown.on_change = lambda value: print(f"Выбрано: {value}")
-        self.box_layout.add(dropdown)
+        dropdown_default_style = arcade.gui.UISlider.UIStyle(
+            border=arcade.color.GRAY,
+            bg=(92, 92, 92)
+        )
+        dropdown_hover_style = arcade.gui.UISlider.UIStyle(
+            border=arcade.color.LIGHT_GRAY,
+            bg=(92, 92, 92)
+        )
+        style_dict = {
+            "press": dropdown_default_style,
+            "normal": dropdown_default_style,
+            "hover": dropdown_hover_style,
+            "disabled": dropdown_default_style
+        }
+
+        self.dropdown = UIDropdown(options=["Стив", "Алекс"], width=200,
+                              dropdown_style=style_dict, active_style=style_dict, primary_style=style_dict,
+                                   default="Стив")
+
+        self.dropdown.on_change = self.choose_skin
+        self.box_layout.add(self.dropdown)
 
         label = UILabel(text="Громкость:",
                         font_size=15,
@@ -1641,24 +1697,46 @@ class MenuWindow(arcade.Window):
                         align="center")
         self.box_layout.add(label)
 
-        slider = UISlider(width=200, height=20, min_value=0, max_value=100, value=50)
+        slider_default_style = arcade.gui.UISlider.UIStyle(
+            filled_track=arcade.color.GRAY,
+            unfilled_track=arcade.color.LIGHT_GRAY,
+            border=arcade.color.GRAY,
+            bg=(92, 92, 92)
+        )
+        slider_hover_style = arcade.gui.UISlider.UIStyle(
+            filled_track=arcade.color.GRAY,
+            unfilled_track=arcade.color.LIGHT_GRAY,
+            border=arcade.color.LIGHT_GRAY,
+            bg=(92, 92, 92)
+        )
+        slider_style_dict = {
+            "press": slider_default_style,
+            "normal": slider_default_style,
+            "hover": slider_hover_style,
+            "disabled": slider_default_style
+        }
+
+        slider = UISlider(width=200, height=20, min_value=0, max_value=100, value=50, style=slider_style_dict)
         slider.on_change = lambda value: print(f"Слайдер: {value}")
         self.box_layout.add(slider)
 
+    def choose_skin(self, event=None):
+        selected_option = self.dropdown.value
+        self.skin = selected_option
+
     def new_game(self, event=None):
         super().on_close()
-
-        self.game_window = GridGame()
-        print(self.game_window.save_file)
+        self.game_window = GridGame(self.skin)
         if os.path.exists(self.game_window.save_file):
             os.remove(self.game_window.save_file)
         self.game_window.setup()
         arcade.run()
+
     def start_game(self, event=None):
         # Закрываем меню и открываем игровое окно
         # from game_window import GameWindow  # Импортируем здесь, чтобы избежать циклического импорта
         super().on_close()
-        self.game_window = GridGame()
+        self.game_window = GridGame(self.skin)
         self.game_window.setup()
         arcade.run()  # Запускаем игровое окно
 
@@ -1693,7 +1771,7 @@ class PauseScreen:
         self.is_visible = False
 
         # Позиция и размеры кнопок
-        self.button_width = 200
+        self.button_width = 300
         self.button_height = 50
         self.button_spacing = 70
 
@@ -1701,9 +1779,9 @@ class PauseScreen:
         self.background_color = (0, 0, 0, 180)  # Полупрозрачный черный
         self.title_color = arcade.color.GOLD
         self.text_color = arcade.color.WHITE
-        self.button_color = arcade.color.BLUE_GRAY
-        self.button_hover_color = arcade.color.LIGHT_BLUE
-        self.button_border_color = arcade.color.BLACK
+        self.button_color = (145, 145, 145)
+        self.button_hover_color = (200, 200, 200)
+        self.button_border_color = (79, 79, 79)
 
         # Состояния кнопок
         self.continue_button_hovered = False
@@ -1773,16 +1851,13 @@ class PauseScreen:
             return True
 
         if self._is_point_in_button(x, y, center_x, save_y):
-            print("Сохранение игры...")
-            self.window.save_game()  # Добавьте эту строку
+            self.window.save_game()
             return True
 
         if self._is_point_in_button(x, y, center_x, craft_y):
-            print("Открытие инструкции по крафту...")
             return True
 
         if self._is_point_in_button(x, y, center_x, exit_y):
-            print("Выход в меню...")
             self.window.save_game()  # Сохраняем перед выходом
             self.window.on_close()
             return True
@@ -1905,6 +1980,7 @@ class PauseScreen:
             bold=True
         )
         button_text.draw()
+
 
 def main():
     # Создаем и запускаем игру

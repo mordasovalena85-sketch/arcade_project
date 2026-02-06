@@ -1,6 +1,8 @@
 BLOCKS_DATA = {
     'earth': [0.8, 'grass', 16],
+'grass': [0.8, 'grass', 16],
     'stone': [4, 'stone', 8],
+'stone2': [4, 'stone', 8],
     'coal': [6, 'stone', 6.5],
     'iron': [12, 'stone', 5],
     'gold': [18, 'stone', 3],
@@ -62,8 +64,8 @@ CRAFTING_RECIPES = {
     # Каменный меч
     "stone_sword": {
         "pattern": [
-            [None, "stone", None],
-            [None, "stone", None],
+            [None, "stone2", None],
+            [None, "stone2", None],
             [None, "sticks", None]
         ],
         "result": "stone_sword",
@@ -72,9 +74,9 @@ CRAFTING_RECIPES = {
     # Печка
     "oven": {
         "pattern": [
-            ["stone", "stone", "stone"],
-            ["stone", None, "stone"],
-            ["stone", "stone", "stone"]
+            ["stone2", "stone2", "stone2"],
+            ["stone2", None, "stone2"],
+            ["stone2", "stone2", "stone2"]
         ],
         "result": "oven",
         "result_count": 1
@@ -82,8 +84,8 @@ CRAFTING_RECIPES = {
     # Красивый камень
     "stone_bricks": {
         "pattern": [
-            ["stone", "stone", None],
-            ["stone", "stone", None],
+            ["stone2", "stone2", None],
+            ["stone2", "stone2", None],
             [None, None, None]
         ],
         "result": "stone_bricks",
@@ -133,8 +135,8 @@ CRAFTING_RECIPES = {
     # Каменный топор
     "stone_axe": {
         "pattern": [
-            ['stone', "stone", None],
-            ['stone', "sticks", None],
+            ['stone2', "stone2", None],
+            ['stone2', "sticks", None],
             [None, "sticks", None]
         ],
         "result": "stone_axe",
@@ -184,7 +186,7 @@ CRAFTING_RECIPES = {
     # Каменная кирка
     "stone_pickaxe": {
         "pattern": [
-            ['stone', "stone", 'stone'],
+            ['stone2', "stone2", 'stone2'],
             [None, "sticks", None],
             [None, "sticks", None]
         ],
@@ -235,7 +237,7 @@ CRAFTING_RECIPES = {
     # Каменная лопата
     "stone_shovel": {
         "pattern": [
-            [None, "stone", None],
+            [None, "stone2", None],
             [None, "sticks", None],
             [None, "sticks", None]
         ],
@@ -361,23 +363,23 @@ WEAPON = {
 
 "wooden_shovel": {
         "damage": 1.5,
-        "object": ["earth"]
+        "object": ["earth", 'grass']
     },
 "stone_shovel": {
         "damage": 2,
-        "object": ["earth"]
+        "object": ["earth", 'grass']
     },
 "iron_shovel": {
         "damage": 3,
-        "object": ["earth"]
+        "object": ["earth", 'grass']
     },
 "golden_shovel": {
         "damage": 4,
-        "object": ["earth"]
+        "object": ["earth", 'grass']
     },
 "diamond_shovel": {
         "damage": 6,
-        "object": ["earth"]
+        "object": ["earth", 'grass']
 }
 
 }

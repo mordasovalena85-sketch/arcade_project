@@ -5,10 +5,10 @@
   <image source="minecraft_blocks/earth.webp" width="160" height="160"/>
  </tile>
  <tile id="1">
-  <image source="minecraft_blocks/Grass_Block_29_JE2_BE2.webp" width="160" height="160"/>
+  <image source="minecraft_blocks/grass.webp" width="160" height="160"/>
  </tile>
  <tile id="2">
-  <image source="minecraft_blocks/Stone_29_JE5_BE3.webp" width="160" height="160"/>
+  <image source="minecraft_blocks/stone.webp" width="160" height="160"/>
  </tile>
  <tile id="3">
   <image source="minecraft_blocks/Sand_29_JE5_BE3.webp" width="160" height="160"/>
