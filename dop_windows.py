@@ -1,3 +1,13 @@
+import arcade
+import os
+
+from arcade import Text
+
+from arcade.gui import (UIManager, UIAnchorLayout, UIBoxLayout,
+                        UITextureButton, UILabel, UIDropdown, UISlider)
+SCREEN_WIDTH = 600
+SCREEN_HEIGHT = 600
+
 class RespawnScreen:
     """Класс для экрана респавна в конце игры"""
 
@@ -272,6 +282,7 @@ class MenuWindow(arcade.Window):
         self.skin = selected_option
 
     def new_game(self, event=None):
+        from main import GridGame
         super().on_close()
         self.game_window = GridGame(self.skin)
         if os.path.exists(self.game_window.save_file):
@@ -281,7 +292,7 @@ class MenuWindow(arcade.Window):
 
     def start_game(self, event=None):
         # Закрываем меню и открываем игровое окно
-        # from game_window import GameWindow  # Импортируем здесь, чтобы избежать циклического импорта
+        from main import GridGame  # Импортируем здесь, чтобы избежать циклического импорта
         super().on_close()
         self.game_window = GridGame(self.skin)
         self.game_window.setup()
