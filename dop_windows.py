@@ -169,6 +169,10 @@ class MenuWindow(arcade.Window):
         # Инициализируем окно
         super().__init__(width=SCREEN_WIDTH, height=SCREEN_HEIGHT, title="Меню игры")
 
+        self.music_sound = None
+        self.music_player = None
+        self.is_playing = False
+
         # UIManager — сердце GUI
         self.manager = UIManager()
         self.manager.enable()  # Включить, чтоб виджеты работали
@@ -188,9 +192,11 @@ class MenuWindow(arcade.Window):
         # Для переключения на игровое окно
         self.game_window = None
 
-        self.skin = 'Стив'
+        self.skin = 'Stive'
+
 
     def setup_widgets(self):
+
         overlay_texture = arcade.load_texture("menu/title.png")
         overlay_widget = arcade.gui.UITextureButton(
             width=585, height=150,
@@ -240,9 +246,9 @@ class MenuWindow(arcade.Window):
             "disabled": dropdown_default_style
         }
 
-        self.dropdown = UIDropdown(options=["Стив", "Алекс"], width=200,
+        self.dropdown = UIDropdown(options=["Stive", "Alex"], width=200,
                               dropdown_style=style_dict, active_style=style_dict, primary_style=style_dict,
-                                   default="Стив")
+                                   default="Stive")
 
         self.dropdown.on_change = self.choose_skin
         self.box_layout.add(self.dropdown)
@@ -273,9 +279,29 @@ class MenuWindow(arcade.Window):
             "disabled": slider_default_style
         }
 
-        slider = UISlider(width=200, height=20, min_value=0, max_value=100, value=50, style=slider_style_dict)
-        slider.on_change = lambda value: print(f"Слайдер: {value}")
-        self.box_layout.add(slider)
+        self.slider = UISlider(width=200, height=20, min_value=0, max_value=8, value=1, style=slider_style_dict)
+        self.slider.on_change = self.set_volume
+        self.box_layout.add(self.slider)
+
+        self.music_sound = arcade.load_sound('music/background_music.wav')
+        self.play(self.slider.value)
+
+    def play(self, volume):
+        """Запускает музыку на повторе"""
+        if self.music_player:
+            arcade.stop_sound(self.music_player)
+        # Запускаем с текущей громкостью
+        self.music_player = arcade.play_sound(
+                self.music_sound,
+                volume=volume,
+                loop=True  # Постоянный повтор
+            )
+
+    def set_volume(self, event=None):
+        """Устанавливает громкость и перезапускает музыку"""
+        # Перезапускаем с новой громкостью
+        self.play(event.new_value)
+
 
     def choose_skin(self, event=None):
         selected_option = self.dropdown.value
@@ -284,7 +310,8 @@ class MenuWindow(arcade.Window):
     def new_game(self, event=None):
         from main import GridGame
         super().on_close()
-        self.game_window = GridGame(self.skin)
+        arcade.stop_sound(self.music_player)
+        self.game_window = GridGame(self.skin, self.slider.value)
         if os.path.exists(self.game_window.save_file):
             os.remove(self.game_window.save_file)
         self.game_window.setup()
@@ -294,9 +321,12 @@ class MenuWindow(arcade.Window):
         # Закрываем меню и открываем игровое окно
         from main import GridGame  # Импортируем здесь, чтобы избежать циклического импорта
         super().on_close()
-        self.game_window = GridGame(self.skin)
+        arcade.stop_sound(self.music_player)
+        self.game_window = GridGame(self.skin, self.slider.value)
         self.game_window.setup()
         arcade.run()  # Запускаем игровое окно
+
+
 
     def on_draw(self):
         self.clear()
@@ -309,16 +339,6 @@ class MenuWindow(arcade.Window):
 
         self.manager.draw()  # Рисуй GUI поверх всего
 
-    def on_mouse_press(self, x, y, button, modifiers):
-        pass  # Для кликов, но manager сам обрабатывает
-
-    def on_update(self, delta_time):
-        """Обновление логики"""
-        pass
-
-    def on_key_press(self, key, modifiers):
-        """Обработка нажатия клавиш"""
-        pass
 
 
 class PauseScreen:

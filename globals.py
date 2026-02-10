@@ -279,7 +279,7 @@ CRAFTING_RECIPES = {
     "iron_ingot": {
         "pattern": [
             ["iron2", None, None],
-            [None, None, None],
+            ["coal2", None, None],
             [None, None, None]
         ],
         "result": "iron_ingot",
@@ -290,7 +290,7 @@ CRAFTING_RECIPES = {
     "golden_ingot": {
         "pattern": [
             ["gold2", None, None],
-            [None, None, None],
+            ["coal2", None, None],
             [None, None, None]
         ],
         "result": "golden_ingot",
