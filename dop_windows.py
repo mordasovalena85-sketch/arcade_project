@@ -362,11 +362,10 @@ class PauseScreen:
         self.button_hover_color = (200, 200, 200)
         self.button_border_color = (79, 79, 79)
 
-        # Состояния кнопок
+        # Состояния кнопок (убрана craft_button_hovered)
         self.continue_button_hovered = False
         self.save_button_hovered = False
         self.exit_button_hovered = False
-        self.craft_button_hovered = False
 
     def show(self):
         """Показать экран паузы"""
@@ -378,7 +377,6 @@ class PauseScreen:
         self.continue_button_hovered = False
         self.save_button_hovered = False
         self.exit_button_hovered = False
-        self.craft_button_hovered = False
 
     def update_mouse_position(self, x, y):
         """Обновить позицию мыши для определения наведения на кнопки"""
@@ -392,13 +390,11 @@ class PauseScreen:
         # Позиции кнопок
         continue_y = center_y + 30
         save_y = center_y - 40
-        craft_y = center_y - 110
-        exit_y = center_y - 180
+        exit_y = center_y - 110  # Подняли exit выше, т.к. убрали инструкцию
 
         # Проверяем наведение на каждую кнопку
         self.continue_button_hovered = self._is_point_in_button(x, y, center_x, continue_y)
         self.save_button_hovered = self._is_point_in_button(x, y, center_x, save_y)
-        self.craft_button_hovered = self._is_point_in_button(x, y, center_x, craft_y)
         self.exit_button_hovered = self._is_point_in_button(x, y, center_x, exit_y)
 
     def _is_point_in_button(self, x, y, button_x, button_y):
@@ -421,8 +417,7 @@ class PauseScreen:
         # Позиции кнопок
         continue_y = center_y + 30
         save_y = center_y - 40
-        craft_y = center_y - 110
-        exit_y = center_y - 180
+        exit_y = center_y - 110  # Подняли exit выше
 
         # Проверяем клик по каждой кнопке
         if self._is_point_in_button(x, y, center_x, continue_y):
@@ -431,9 +426,6 @@ class PauseScreen:
 
         if self._is_point_in_button(x, y, center_x, save_y):
             self.window.save_game()
-            return True
-
-        if self._is_point_in_button(x, y, center_x, craft_y):
             return True
 
         if self._is_point_in_button(x, y, center_x, exit_y):
@@ -499,16 +491,9 @@ class PauseScreen:
             self.save_button_hovered
         )
 
-        # Кнопка "Инструкция по крафту"
-        self._draw_button(
-            center_x, center_y - 110,
-            "Инструкция по крафту",
-            self.craft_button_hovered
-        )
-
         # Кнопка "Выйти"
         self._draw_button(
-            center_x, center_y - 180,
+            center_x, center_y - 110,  # Сдвинули выше
             "Выйти",
             self.exit_button_hovered
         )

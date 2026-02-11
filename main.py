@@ -25,10 +25,10 @@ GRAVITY = 1  # Гравитация для физического движка
 # Константы монстров
 MAX_MONSTERS = 4  # Максимальное количество монстров
 MONSTER_SPAWN_RADIUS = 600  # Радиус спавна от игрока
-MONSTER_SPAWN_DELAY = 5.0  # Задержка между спавнами (секунды)
+MONSTER_SPAWN_DELAY = 10.0  # Задержка между спавнами (секунды)
 MONSTER_HEALTH = 50  # Здоровье монстра
-PLAYER_ATTACK_DAMAGE = 15  # Урон игрока при клике
-PLAYER_ATTACK_RANGE = 80  # Дальность атаки
+PLAYER_ATTACK_DAMAGE = 5  # Урон игрока при клике
+PLAYER_ATTACK_RANGE = 150  # Дальность атаки
 
 # Размеры UI элементов
 BLOCK_SIZE = 40
@@ -786,7 +786,6 @@ class GameWindow(arcade.Window):
         # Загрузка сохраненной игры
         self.load_game()
 
-
         # Расчет размеров игрового мира
         self.world_width = int(self.tile_map.width * self.tile_map.tile_width * TILE_SCALING)
         self.world_height = int(self.tile_map.height * self.tile_map.tile_height * TILE_SCALING)
@@ -807,7 +806,6 @@ class GameWindow(arcade.Window):
         self.walk_sound = arcade.load_sound('music/shagi.wav')
         self.strikes_sound = arcade.load_sound('music/strikes.wav')
         self.hit_sound = arcade.load_sound('music/hit.wav')
-
 
         # Запуск фоновой музыки
         self.play(self.volume)
@@ -915,7 +913,6 @@ class GameWindow(arcade.Window):
                 )
                 help_text.draw()
 
-
     def on_update(self, dt):
         """Обновление игровой логики"""
         # Приостановка обновления если игра на паузе
@@ -954,8 +951,6 @@ class GameWindow(arcade.Window):
                 arcade.stop_sound(self.strikes_player)
             self.strikes_player = None
 
-
-
         # Приостановка обновления если виден экран респавна
         if self.respawn_screen.is_visible:
             return
@@ -987,9 +982,14 @@ class GameWindow(arcade.Window):
                 if not self.strikes_player:
                     self.strikes_player = arcade.play_sound(
                         self.strikes_sound, loop=True, volume=self.volume * 1.5)
-            if not  monster.is_damage and self.strikes_player:
+            if not monster.is_damage and self.strikes_player:
                 arcade.stop_sound(self.strikes_player)
                 self.strikes_player = None
+            if max(abs(monster.center_x - self.player.center_x),
+                   abs(monster.center_y - self.player.center_y)) > 1000:
+                monster.remove_from_sprite_lists()
+
+
 
     def save_game(self):
         """Сохранение полного состояния игры в JSON файл"""
@@ -1064,7 +1064,6 @@ class GameWindow(arcade.Window):
             json.dump(save_data, f, indent=4, ensure_ascii=False)
 
         return True
-
 
     def load_game(self):
         """Загрузка сохраненного состояния игры из JSON файла"""
@@ -1207,10 +1206,14 @@ class GameWindow(arcade.Window):
             if hit_monster:
                 hit_monster = hit_monster[0]
                 # Проверяем расстояние до монстра
-                distance = max(self.player.center_x - hit_monster.center_x,
-                               self.player.center_y - hit_monster.center_y)
+                distance = max(abs(self.player.center_x - hit_monster.center_x),
+                               abs(self.player.center_y - hit_monster.center_y))
                 if distance < PLAYER_ATTACK_RANGE:
-                    hit_monster.health -= PLAYER_ATTACK_DAMAGE
+                    selected_block_name = self.inventory.get_selected_block()
+                    coef = 1
+                    if selected_block_name and 'sword' in selected_block_name:
+                        coef = WEAPON[selected_block_name]['damage']
+                    hit_monster.health -= PLAYER_ATTACK_DAMAGE * coef
                     attacked = True
 
                     # Если здоровье монстра закончилось - удаляем его
@@ -1377,7 +1380,7 @@ class GameWindow(arcade.Window):
                 self.walk_player = arcade.play_sound(
                     self.walk_sound,
                     loop=True,
-                volume=self.volume * 3)
+                    volume=self.volume * 3)
         elif key in (arcade.key.D, arcade.key.RIGHT):
             self.player.dx = 1
             self.player.is_walking = True
@@ -1386,7 +1389,7 @@ class GameWindow(arcade.Window):
                 self.walk_player = arcade.play_sound(
                     self.walk_sound,
                     loop=True,
-                volume=self.volume * 3)
+                    volume=self.volume * 3)
         elif key == arcade.key.ESCAPE:  # Пауза
             if not self.pause_screen.is_visible:
                 self.pause_screen.show()
@@ -1521,15 +1524,23 @@ class GameWindow(arcade.Window):
             gravity_constant=GRAVITY
         )
 
+    def stop_all_music(self):
+        arcade.stop_sound(self.background_music_player)
+        for player in [self.walk_player, self.strikes_player]:
+            if player:
+                arcade.stop_sound(player)
+            player = None
+        for monster in self.monster_list:
+            if monster.walk_player:
+                arcade.stop_sound(monster.walk_player)
+                monster.walk_player = None
+
+
     def on_close(self):
         """Обработка закрытия игрового окна"""
         try:
             # Остановка музыки
-            arcade.stop_sound(self.background_music_player)
-            for player in [self.walk_player, self.strikes_player]:
-                if player:
-                    arcade.stop_sound(player)
-                player = None
+            self.stop_all_music()
             # Перерождение в случае смерти
             if self.respawn_screen.is_visible:
                 self.respawn_player()
