@@ -2,6 +2,7 @@ import enum
 import json
 import math
 import os
+import random
 import time
 
 import arcade
@@ -20,6 +21,14 @@ TILE_SCALING = 0.4
 
 CAMERA_LERP = 0.12  # Коэффициент сглаживания движения камеры
 GRAVITY = 1  # Гравитация для физического движка
+
+# Константы монстров
+MAX_MONSTERS = 4  # Максимальное количество монстров
+MONSTER_SPAWN_RADIUS = 600  # Радиус спавна от игрока
+MONSTER_SPAWN_DELAY = 5.0  # Задержка между спавнами (секунды)
+MONSTER_HEALTH = 50  # Здоровье монстра
+PLAYER_ATTACK_DAMAGE = 15  # Урон игрока при клике
+PLAYER_ATTACK_RANGE = 80  # Дальность атаки
 
 # Размеры UI элементов
 BLOCK_SIZE = 40
@@ -639,6 +648,10 @@ class Monster(arcade.Sprite):
         self.physics_engine = None
         self.current_side = Side.RIGHT
         self.is_damage = False
+        self.health = MONSTER_HEALTH  # Здоровье монстра
+        self.max_health = MONSTER_HEALTH  # Максимальное здоровье
+        self.walk_player = None
+        self.walk_sound = arcade.load_sound('music/zombies.wav')
 
     def setup_physics(self, collision_list):
         """Настройка физического движка для монстра"""
@@ -651,12 +664,26 @@ class Monster(arcade.Sprite):
     def update(self, delta_time, player: Hero):
         """Обновление логики монстра"""
         # Движение к игроку по горизонтали
-        if player.center_x < self.center_x:
+        if player.center_x < self.center_x and abs(player.center_x - self.center_x) < 600:
             self.dx = -1
             self.current_side = Side.RIGHT
-        else:
+            if not self.walk_player:
+                self.walk_player = arcade.play_sound(
+                    self.walk_sound,
+                    loop=True, volume=0.2)
+        elif player.center_x > self.center_x and abs(player.center_x - self.center_x) < 600:
             self.dx = 1
             self.current_side = Side.LEFT
+            if not self.walk_player:
+                self.walk_player = arcade.play_sound(
+                    self.walk_sound,
+                    loop=True, volume=0.2)
+
+        else:
+            self.dx = 0
+            if self.walk_player:
+                arcade.stop_sound(self.walk_player)
+                self.walk_player = None
 
         self.center_x += self.dx * self.speed * delta_time
 
@@ -742,6 +769,8 @@ class GameWindow(arcade.Window):
         # Оригинальные блоки карты (для сброса)
         self.original_blocks = {}
 
+        self.last_spawn_time = time.time()
+
     def setup(self):
         """Инициализация игры"""
         # Создание всех спрайт-листов
@@ -754,12 +783,9 @@ class GameWindow(arcade.Window):
         self.player.scale = 0.24
         self.player_list.append(self.player)
 
-        # Загрузка сохраненной игры или создание нового монстра
-        if not self.load_game():
-            monster = Monster(400, 700, speed=60, damage=10)
-            monster.setup_physics(self.sprite_lists['collisions'])
-            monster.scale = 0.32
-            self.monster_list.append(monster)
+        # Загрузка сохраненной игры
+        self.load_game()
+
 
         # Расчет размеров игрового мира
         self.world_width = int(self.tile_map.width * self.tile_map.tile_width * TILE_SCALING)
@@ -780,6 +806,7 @@ class GameWindow(arcade.Window):
         self.background_sound = arcade.load_sound('music/background_music.wav')
         self.walk_sound = arcade.load_sound('music/shagi.wav')
         self.strikes_sound = arcade.load_sound('music/strikes.wav')
+        self.hit_sound = arcade.load_sound('music/hit.wav')
 
 
         # Запуск фоновой музыки
@@ -888,6 +915,7 @@ class GameWindow(arcade.Window):
                 )
                 help_text.draw()
 
+
     def on_update(self, dt):
         """Обновление игровой логики"""
         # Приостановка обновления если игра на паузе
@@ -942,6 +970,14 @@ class GameWindow(arcade.Window):
         smooth_x = (1 - CAMERA_LERP) * cam_x + CAMERA_LERP * target_x
         smooth_y = (1 - CAMERA_LERP) * cam_y + CAMERA_LERP * target_y
         self.world_camera.position = (smooth_x, smooth_y)
+
+        # Спавн монстров
+        current_time = time.time()
+        if (self.player and self.player.is_alive and
+                len(self.monster_list) < MAX_MONSTERS and
+                current_time - self.last_spawn_time > MONSTER_SPAWN_DELAY):
+            self.spawn_monster()
+            self.last_spawn_time = current_time
 
         # Обновление монстров
         self.monster_list.update_animation(dt)
@@ -1161,14 +1197,39 @@ class GameWindow(arcade.Window):
                 return
 
         # Преобразование координат мыши в игровые координаты
-        x, y = self.world_camera.unproject((x, y))[0], self.world_camera.unproject((x, y))[1]
+        world_x, world_y = self.world_camera.unproject((x, y))[:2]
 
-        # ЛКМ - разрушение блоков
+        # ЛКМ - атака монстров или разрушение блоков
         if button == arcade.MOUSE_BUTTON_LEFT:
-            if (self.player.center_x - 100 <= x <= self.player.center_x + 100 and
-                    self.player.center_y - 100 <= y <= self.player.center_y + 100):
+            # Сначала проверяем атаку по монстрам
+            attacked = False
+            hit_monster = arcade.get_sprites_at_point((world_x, world_y), self.monster_list)
+            if hit_monster:
+                hit_monster = hit_monster[0]
+                # Проверяем расстояние до монстра
+                distance = max(self.player.center_x - hit_monster.center_x,
+                               self.player.center_y - hit_monster.center_y)
+                if distance < PLAYER_ATTACK_RANGE:
+                    hit_monster.health -= PLAYER_ATTACK_DAMAGE
+                    attacked = True
 
-                self.first_blocks_hit_list = arcade.get_sprites_at_point((x, y), self.all_blocks)
+                    # Если здоровье монстра закончилось - удаляем его
+                    if hit_monster.health <= 0:
+                        if hit_monster.walk_player:
+                            arcade.stop_sound(hit_monster.walk_player)
+                        hit_monster.remove_from_sprite_lists()
+
+                    # Воспроизводим звук удара
+                    arcade.play_sound(self.hit_sound, volume=self.volume * 1.5)
+
+            if attacked:
+                return
+
+            # Если не атаковали монстра, пробуем разрушить блок
+            if (self.player.center_x - 100 <= world_x <= self.player.center_x + 100 and
+                    self.player.center_y - 100 <= world_y <= self.player.center_y + 100):
+
+                self.first_blocks_hit_list = arcade.get_sprites_at_point((world_x, world_y), self.all_blocks)
                 for block in self.first_blocks_hit_list:
                     for name, sprite_list in self.sprite_lists.items():
                         if block in sprite_list and name != 'collisions':
@@ -1200,9 +1261,9 @@ class GameWindow(arcade.Window):
 
         # ПКМ - установка блоков
         if button == arcade.MOUSE_BUTTON_RIGHT:
-            if (self.player.center_x - 140 <= x <= self.player.center_x + 140 and
-                    self.player.center_y - 140 <= y <= self.player.center_y + 140):
-                self.inventory.remove_block(x, y, self)
+            if (self.player.center_x - 140 <= world_x <= self.player.center_x + 140 and
+                    self.player.center_y - 140 <= world_y <= self.player.center_y + 140):
+                self.inventory.remove_block(world_x, world_y, self)
 
     def on_mouse_motion(self, x, y, dx, dy):
         """Обработка движения мыши"""
@@ -1413,6 +1474,30 @@ class GameWindow(arcade.Window):
         self.all_blocks.clear()
         for sprite_list in self.sprite_lists.values():
             self.all_blocks.extend(sprite_list)
+
+    def spawn_monster(self):
+        """Спавн монстра в радиусе от игрока"""
+        if len(self.monster_list) >= MAX_MONSTERS:
+            return False
+
+        # Генерируем случайный угол и расстояние
+        distance = random.uniform(100, MONSTER_SPAWN_RADIUS)
+
+        # Вычисляем позицию спавна
+        spawn_x = self.player.center_x + distance
+        spawn_y = self.player.center_y
+
+        # Проверяем, что позиция находится в пределах карты
+        spawn_x = max(0, min(self.world_width, spawn_x))
+        spawn_y = max(0, min(self.world_height, spawn_y))
+
+        # Создаем монстра
+        monster = Monster(spawn_x, spawn_y, speed=60, damage=10)
+        monster.setup_physics(self.sprite_lists['collisions'])
+        monster.scale = 0.32
+        monster.health = MONSTER_HEALTH
+        self.monster_list.append(monster)
+        return True
 
     def respawn_player(self):
         """Перерождение игрока после смерти"""
