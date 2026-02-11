@@ -53,7 +53,7 @@ class Side(enum.Enum):
 class InventorySlot:
     """Слот инвентаря для хранения предметов"""
 
-    def __init__(self, x: float, y: float, size: int = BLOCK_SIZE, is_crafting_slot=False):
+    def __init__(self, x, y, size: int = BLOCK_SIZE, is_crafting_slot=False):
         self.x = x
         self.y = y
         self.size = size
@@ -170,7 +170,7 @@ class CraftingWindow:
         self.result_slot.update_texture()
         self.current_recipe = None
 
-    def add_to_crafting_grid(self, block_name: str, slot_index: int) -> bool:
+    def add_to_crafting_grid(self, block_name, slot_index):
         """Добавление предмета в указанный слот сетки крафта"""
         if 0 <= slot_index < len(self.grid_slots):
             slot = self.grid_slots[slot_index]
@@ -188,7 +188,7 @@ class CraftingWindow:
             return True
         return False
 
-    def remove_from_crafting_grid(self, slot_index: int) -> bool:
+    def remove_from_crafting_grid(self, slot_index):
         """Удаление одного предмета из сетки крафта"""
         if 0 <= slot_index < len(self.grid_slots):
             slot = self.grid_slots[slot_index]
@@ -234,7 +234,7 @@ class CraftingWindow:
             self.result_slot.update_score()
             self.result_slot.update_texture()
 
-    def matches_recipe(self, crafting_matrix, recipe_pattern) -> bool:
+    def matches_recipe(self, crafting_matrix, recipe_pattern):
         """Проверка точного соответствия матрицы крафта рецепту"""
         for i in range(CRAFTING_GRID_SIZE):
             for j in range(CRAFTING_GRID_SIZE):
@@ -242,7 +242,7 @@ class CraftingWindow:
                     return False
         return True
 
-    def craft_item(self) -> bool:
+    def craft_item(self):
         """Выполнение крафта предмета по текущему рецепту"""
         if not self.current_recipe or not self.result_slot.block_name:
             return False
@@ -383,14 +383,14 @@ class InventorySystem:
         # Выбор первого слота по умолчанию
         self.select_slot(0)
 
-    def select_slot(self, index: int):
+    def select_slot(self, index):
         """Выбор активного слота горячей панели"""
         if 0 <= index < len(self.slots):
             self.slots[self.selected_slot].selected = False
             self.selected_slot = index
             self.slots[self.selected_slot].selected = True
 
-    def scroll_slot(self, direction: int):
+    def scroll_slot(self, direction):
         """Прокрутка слотов колесом мыши"""
         new_index = (self.selected_slot + direction) % len(self.slots)
         self.select_slot(new_index)
@@ -404,7 +404,7 @@ class InventorySystem:
         # Отрисовка окна крафта (если видимо)
         self.crafting_window.draw()
 
-    def add_block(self, block_name: str) -> bool:
+    def add_block(self, block_name):
         """Добавление блока в инвентарь"""
         # Поиск слота с таким же блоком, где есть место
         for slot in self.slots:
@@ -424,7 +424,7 @@ class InventorySystem:
 
         return False  # Все слоты заняты
 
-    def has_space_for(self, block_name: str) -> bool:
+    def has_space_for(self, block_name):
         """Проверка наличия места для блока в инвентаре"""
         # Проверка слотов с таким же блоком
         for slot in self.slots:
@@ -443,7 +443,7 @@ class InventorySystem:
         slot = self.slots[self.selected_slot]
         return slot.block_name if slot else None
 
-    def remove_block(self, x: float, y: float, game_window=None) -> bool:
+    def remove_block(self, x, y, game_window=None):
         """Использование блока из инвентаря (установка в мире)"""
         slot = self.slots[self.selected_slot]
 
@@ -461,22 +461,16 @@ class InventorySystem:
 
         return False
 
-    def on_key_press(self, key, modifiers) -> bool:
+    def on_key_press(self, key, modifiers):
         """Обработка нажатий клавиш для инвентаря"""
         if key == arcade.key.E:
             # Открытие/закрытие окна крафта
             self.crafting_window.toggle_visibility()
             return True
 
-        if self.crafting_window.is_visible and key == arcade.key.C:
-            # Крафт предмета по клавише C
-            if self.crafting_window.craft_item():
-                arcade.play_sound(self.window.craft_sound)
-            return True
-
         return False
 
-    def on_mouse_press(self, x, y, button, modifiers) -> bool:
+    def on_mouse_press(self, x, y, button, modifiers):
         """Обработка кликов мыши для окна крафта"""
         if not self.crafting_window.is_visible:
             return False
@@ -522,11 +516,17 @@ class InventorySystem:
 
         return False
 
+    def clear_inventory(self):
+        for slot in self.slots:
+            slot.count = 0
+            slot.block_name = None
+            slot.update_texture()
+
 
 class Hero(arcade.Sprite):
     """Класс игрока (главного персонажа)"""
 
-    def __init__(self, x: float, y: float, speed: int, skin: str):
+    def __init__(self, x, y, speed, skin):
         super().__init__()
         self.center_x = x
         self.center_y = y
@@ -554,7 +554,7 @@ class Hero(arcade.Sprite):
         self.health = self.max_health
         self.is_alive = True
 
-    def update(self, delta_time: float):
+    def update(self, delta_time):
         """Обновление позиции игрока"""
         current_speed = self.speed
         if self.dx != 0 and self.dy != 0:
@@ -580,7 +580,7 @@ class Hero(arcade.Sprite):
 class Crack(arcade.Sprite):
     """Анимация трещины при разрушении блока"""
 
-    def __init__(self, x: float, y: float, speed: float):
+    def __init__(self, x, y, speed):
         super().__init__()
         self.center_x = x
         self.center_y = y
@@ -614,7 +614,7 @@ class Crack(arcade.Sprite):
 class Monster(arcade.Sprite):
     """Класс врага (зомби)"""
 
-    def __init__(self, x: float, y: float, speed: int, damage: int):
+    def __init__(self, x, y, speed, damage):
         super().__init__()
         self.center_x = x
         self.center_y = y
@@ -638,6 +638,7 @@ class Monster(arcade.Sprite):
         self.attack_delay = 1
         self.physics_engine = None
         self.current_side = Side.RIGHT
+        self.is_damage = False
 
     def setup_physics(self, collision_list):
         """Настройка физического движка для монстра"""
@@ -647,7 +648,7 @@ class Monster(arcade.Sprite):
             gravity_constant=GRAVITY
         )
 
-    def update(self, delta_time: float, player: Hero):
+    def update(self, delta_time, player: Hero):
         """Обновление логики монстра"""
         # Движение к игроку по горизонтали
         if player.center_x < self.center_x:
@@ -675,9 +676,11 @@ class Monster(arcade.Sprite):
         if arcade.check_for_collision(self, player):
             current_time = time.time()
             if current_time - self.last_attack_time >= self.attack_delay:
-                if hasattr(player, "health"):
-                    player.health -= self.damage
+                player.health -= self.damage
+                self.is_damage = True
                 self.last_attack_time = current_time
+        else:
+            self.is_damage = False
 
     def update_animation(self, delta_time: float = 1 / 60):
         """Обновление анимации монстра"""
@@ -690,10 +693,10 @@ class Monster(arcade.Sprite):
             self.walk_animation[self.cur_texture_index].flip_horizontally()
 
 
-class GridGame(arcade.Window):
+class GameWindow(arcade.Window):
     """Основной класс игры"""
 
-    def __init__(self, skin: str, volume: float):
+    def __init__(self, skin, volume):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, antialiasing=True)
         arcade.set_background_color(arcade.color.SKY_BLUE)
 
@@ -720,9 +723,11 @@ class GridGame(arcade.Window):
         self.hold_duration = 10
 
         # Звуки
-        self.music_sound = None
-        self.music_player = None
-        self.sound_player = None
+        self.background_sound = None
+        self.background_music_player = None
+        self.blocks_player = None
+        self.walk_player = None
+        self.strikes_player = None
 
         # Система инвентаря
         self.inventory = InventorySystem(self)
@@ -772,17 +777,20 @@ class GridGame(arcade.Window):
         self.wood_sound = arcade.load_sound("music/wood.wav")
         self.stone_sound = arcade.load_sound("music/stone.wav")
         self.craft_sound = arcade.load_sound("music/stone.wav")
-        self.music_sound = arcade.load_sound('music/background_music.wav')
+        self.background_sound = arcade.load_sound('music/background_music.wav')
+        self.walk_sound = arcade.load_sound('music/shagi.wav')
+        self.strikes_sound = arcade.load_sound('music/strikes.wav')
+
 
         # Запуск фоновой музыки
         self.play(self.volume)
 
-    def play(self, volume: float):
+    def play(self, volume):
         """Запуск фоновой музыки с указанной громкостью"""
-        if self.music_player:
-            arcade.stop_sound(self.music_player)
-        self.music_player = arcade.play_sound(
-            self.music_sound,
+        if self.background_music_player:
+            arcade.stop_sound(self.background_music_player)
+        self.background_music_player = arcade.play_sound(
+            self.background_sound,
             volume=volume,
             loop=True
         )
@@ -880,7 +888,7 @@ class GridGame(arcade.Window):
                 )
                 help_text.draw()
 
-    def on_update(self, dt: float):
+    def on_update(self, dt):
         """Обновление игровой логики"""
         # Приостановка обновления если игра на паузе
         if self.pause_screen.is_visible:
@@ -914,6 +922,11 @@ class GridGame(arcade.Window):
             self.player.is_alive = False
             self.player.remove_from_sprite_lists()
             self.respawn_screen.show()
+            if self.strikes_player:
+                arcade.stop_sound(self.strikes_player)
+            self.strikes_player = None
+
+
 
         # Приостановка обновления если виден экран респавна
         if self.respawn_screen.is_visible:
@@ -934,6 +947,13 @@ class GridGame(arcade.Window):
         self.monster_list.update_animation(dt)
         for monster in self.monster_list:
             monster.update(dt, self.player)
+            if monster.is_damage:
+                if not self.strikes_player:
+                    self.strikes_player = arcade.play_sound(
+                        self.strikes_sound, loop=True, volume=self.volume * 1.5)
+            if not  monster.is_damage and self.strikes_player:
+                arcade.stop_sound(self.strikes_player)
+                self.strikes_player = None
 
     def save_game(self):
         """Сохранение полного состояния игры в JSON файл"""
@@ -1010,7 +1030,7 @@ class GridGame(arcade.Window):
         return True
 
 
-    def load_game(self) -> bool:
+    def load_game(self):
         """Загрузка сохраненного состояния игры из JSON файла"""
         if not os.path.exists(self.save_file):
             return False
@@ -1155,9 +1175,9 @@ class GridGame(arcade.Window):
                             self.name = name
 
                             # Воспроизведение звука разрушения
-                            if not self.sound_player:
+                            if not self.blocks_player:
                                 music = BLOCKS_DATA[self.name][1]
-                                self.sound_player = arcade.play_sound(
+                                self.blocks_player = arcade.play_sound(
                                     eval(f'self.{music}_sound'),
                                     loop=True)
 
@@ -1211,9 +1231,9 @@ class GridGame(arcade.Window):
         self.is_breaking_block = False
 
         # Остановка звука разрушения
-        if self.sound_player:
-            arcade.stop_sound(self.sound_player)
-        self.sound_player = None
+        if self.blocks_player:
+            arcade.stop_sound(self.blocks_player)
+        self.blocks_player = None
 
         # Если удержали достаточно долго - разрушаем блок
         if self.hold_duration > self.time_digging:
@@ -1292,10 +1312,20 @@ class GridGame(arcade.Window):
             self.player.dx = -1
             self.player.is_walking = True
             self.player.current_side = Side.LEFT
+            if not self.walk_player:
+                self.walk_player = arcade.play_sound(
+                    self.walk_sound,
+                    loop=True,
+                volume=self.volume * 3)
         elif key in (arcade.key.D, arcade.key.RIGHT):
             self.player.dx = 1
             self.player.is_walking = True
             self.player.current_side = Side.RIGHT
+            if not self.walk_player:
+                self.walk_player = arcade.play_sound(
+                    self.walk_sound,
+                    loop=True,
+                volume=self.volume * 3)
         elif key == arcade.key.ESCAPE:  # Пауза
             if not self.pause_screen.is_visible:
                 self.pause_screen.show()
@@ -1316,8 +1346,11 @@ class GridGame(arcade.Window):
         # Остановка анимации ходьбы если игрок не двигается
         if self.player.dx == 0 and self.player.dy == 0:
             self.player.is_walking = False
+            if self.walk_player:
+                arcade.stop_sound(self.walk_player)
+            self.walk_player = None
 
-    def create_block_at_position(self, block_name: str, x: float, y: float) -> bool:
+    def create_block_at_position(self, block_name, x, y):
         """Создание блока в указанной позиции мира"""
         # Преобразование координат в сетку блоков
         actual_tile_size = self.tile_map.tile_width * TILE_SCALING
@@ -1383,6 +1416,10 @@ class GridGame(arcade.Window):
 
     def respawn_player(self):
         """Перерождение игрока после смерти"""
+        # Очистка инвентаря и крафта после смерти
+        self.inventory.crafting_window.return_items_to_inventory()
+        self.inventory.clear_inventory()
+
         self.player = Hero(self.player_start_x, self.player_start_y, 200, self.skin)
         self.player.scale = 0.24
         self.player_list.append(self.player)
@@ -1401,11 +1438,19 @@ class GridGame(arcade.Window):
 
     def on_close(self):
         """Обработка закрытия игрового окна"""
-        self.save_game()
         try:
-            # Остановка музыки и возврат в меню
-            arcade.stop_sound(self.music_player)
+            # Остановка музыки
+            arcade.stop_sound(self.background_music_player)
+            for player in [self.walk_player, self.strikes_player]:
+                if player:
+                    arcade.stop_sound(player)
+                player = None
+            # Перерождение в случае смерти
+            if self.respawn_screen.is_visible:
+                self.respawn_player()
+            self.save_game()
             super().on_close()
+            # Возврат в меню
             menu = MenuWindow()
             arcade.run()
         except pyglet.gl.lib.GLException:

@@ -1,5 +1,6 @@
-import arcade
 import os
+
+import arcade
 
 from arcade import Text
 
@@ -167,7 +168,7 @@ class RespawnScreen:
 class MenuWindow(arcade.Window):
     def __init__(self):
         # Инициализируем окно
-        super().__init__(width=SCREEN_WIDTH, height=SCREEN_HEIGHT, title="Меню игры")
+        super().__init__(width=SCREEN_WIDTH, height=SCREEN_HEIGHT, title="Menu")
 
         self.music_sound = None
         self.music_player = None
@@ -308,10 +309,10 @@ class MenuWindow(arcade.Window):
         self.skin = selected_option
 
     def new_game(self, event=None):
-        from main import GridGame
+        from main import GameWindow
         super().on_close()
         arcade.stop_sound(self.music_player)
-        self.game_window = GridGame(self.skin, self.slider.value)
+        self.game_window = GameWindow(self.skin, self.slider.value)
         if os.path.exists(self.game_window.save_file):
             os.remove(self.game_window.save_file)
         self.game_window.setup()
@@ -319,10 +320,10 @@ class MenuWindow(arcade.Window):
 
     def start_game(self, event=None):
         # Закрываем меню и открываем игровое окно
-        from main import GridGame  # Импортируем здесь, чтобы избежать циклического импорта
+        from main import GameWindow  # Импортируем здесь, чтобы избежать циклического импорта
         super().on_close()
         arcade.stop_sound(self.music_player)
-        self.game_window = GridGame(self.skin, self.slider.value)
+        self.game_window = GameWindow(self.skin, self.slider.value)
         self.game_window.setup()
         arcade.run()  # Запускаем игровое окно
 
