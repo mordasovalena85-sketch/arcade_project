@@ -542,7 +542,7 @@ class Hero(arcade.Sprite):
         self.is_walking = False
         self.current_side = Side.RIGHT
         self.skin = skin
-        self.texture_idle = arcade.load_texture(f"skin/resized-{self.skin}_1.png")
+        self.texture_idle = arcade.load_texture(f"skin/{self.skin}_idle.png")
         self.texture = self.texture_idle
         self.walk_animation = []
 
@@ -766,10 +766,20 @@ class GameWindow(arcade.Window):
         # Файл сохранения
         self.save_file = "game_save.json"
 
-        # Оригинальные блоки карты (для сброса)
+        self.sound_player = None
+        self.day_time = 0.0
+        self.sun_list = arcade.SpriteList()
+
+
+    # Оригинальные блоки карты (для сброса)
         self.original_blocks = {}
 
         self.last_spawn_time = time.time()
+
+        self.sun = arcade.Sprite("minecraft_blocks/sun.webp", scale=0.25)
+        self.sun.center_x = 80
+        self.sun.center_y = SCREEN_HEIGHT // 2
+        self.sun_list.append(self.sun)
 
     def setup(self):
         """Инициализация игры"""
@@ -856,18 +866,20 @@ class GameWindow(arcade.Window):
         """Отрисовка игрового экрана"""
         self.clear()
 
-        # Отрисовка игрового мира через игровую камеру
+        self.gui_camera.use()
+        self.sun_list.draw()
+
         self.world_camera.use()
         for name, sprite_list in self.sprite_lists.items():
             if name != 'collisions':
                 sprite_list.draw()
-
         self.cracks_list.draw()
         self.player_list.draw()
         self.monster_list.draw()
 
-        # Отрисовка интерфейса через GUI камеру
         self.gui_camera.use()
+        self.draw_lighting()
+
 
         # Отрисовка шкалы здоровья игрока
         if self.player and self.player.is_alive:
@@ -918,6 +930,35 @@ class GameWindow(arcade.Window):
         # Приостановка обновления если игра на паузе
         if self.pause_screen.is_visible:
             return
+
+        day_speed = math.pi / 300
+        night_speed = math.pi / 180
+
+        if math.sin(self.day_time) >= 0:
+            self.day_time += dt * day_speed
+        else:
+            self.day_time += dt * night_speed
+
+        if self.day_time > 2 * math.pi:
+            self.day_time -= 2 * math.pi
+
+        self.sun.center_x = 80
+        sun_oscillation = math.sin(self.day_time)
+        self.sun.center_y = (SCREEN_HEIGHT / 2) + (sun_oscillation * 350)
+
+        # --- Sky Color ---
+        sun_height_factor = (sun_oscillation + 1) / 2
+
+        new_r = int(20 + (115 * sun_height_factor))
+        new_g = int(20 + (186 * sun_height_factor))
+        new_b = int(40 + (195 * sun_height_factor))
+        arcade.set_background_color((new_r, new_g, new_b))
+
+        sun_oscillation = math.sin(self.day_time)
+        if sun_oscillation < 0:
+            self.darkness_alpha = int(abs(sun_oscillation) * 200)
+        else:
+            self.darkness_alpha = 0
 
         # Обновление физики
         self.physics_engine.update()
@@ -1551,6 +1592,25 @@ class GameWindow(arcade.Window):
             arcade.run()
         except pyglet.gl.lib.GLException:
             pass
+
+    def draw_lighting(self):
+        if self.darkness_alpha <= 0:
+            return
+
+        arcade.draw_rect_filled(
+            arcade.rect.XYWH(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT),
+            (0, 0, 0, self.darkness_alpha)
+        )
+
+        if 'torch' in self.sprite_lists:
+            for torch in self.sprite_lists['torch']:
+                screen_pos = self.world_camera.project(torch.position)
+
+                arcade.draw_circle_filled(
+                    screen_pos.x, screen_pos.y,
+                    radius=100,
+                    color=(255, 255, 200, 100)
+                )
 
 
 def main():
