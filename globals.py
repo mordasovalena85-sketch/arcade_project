@@ -1,8 +1,8 @@
 BLOCKS_DATA = {
     'earth': [0.8, 'grass', 16],
-'grass': [0.8, 'grass', 16],
+    'grass': [0.8, 'grass', 16],
     'stone': [4, 'stone', 8],
-'stone2': [4, 'stone', 8],
+    'stone2': [4, 'stone', 8],
     'coal': [6, 'stone', 6.5],
     'iron': [12, 'stone', 5],
     'gold': [18, 'stone', 3],
@@ -15,9 +15,9 @@ BLOCKS_DATA = {
     'oven2': [4, 'stone', 8],
     'stone_bricks': [4, 'stone', 8],
     'glass': [0.2, 'stone', 25],
+    'torch': [0.1, 'wood', 25]
 
 }
-
 
 # Рецепты крафта (матрица 3x3)
 CRAFTING_RECIPES = {
@@ -49,6 +49,16 @@ CRAFTING_RECIPES = {
             [None, None, None]
         ],
         "result": "sticks",
+        "result_count": 4
+    },
+    # Факелы
+    "torch": {
+        "pattern": [
+            [None, "coal2", None],
+            [None, "sticks", None],
+            [None, None, None]
+        ],
+        "result": "torch",
         "result_count": 4
     },
     # Деревянный меч
@@ -122,7 +132,7 @@ CRAFTING_RECIPES = {
         "result_count": 1
     },
 
-# Деревянный топор
+    # Деревянный топор
     "wooden_axe": {
         "pattern": [
             ['wooden_planks', "wooden_planks", None],
@@ -142,7 +152,7 @@ CRAFTING_RECIPES = {
         "result": "stone_axe",
         "result_count": 1
     },
-# Железный топор
+    # Железный топор
     "iron_axe": {
         "pattern": [
             ['iron_ingot', "iron_ingot", None],
@@ -173,7 +183,7 @@ CRAFTING_RECIPES = {
         "result_count": 1
     },
 
-# Деревянная кирка
+    # Деревянная кирка
     "wooden_pickaxe": {
         "pattern": [
             ['wooden_planks', "wooden_planks", 'wooden_planks'],
@@ -193,7 +203,7 @@ CRAFTING_RECIPES = {
         "result": "stone_pickaxe",
         "result_count": 1
     },
-# Железная кирка
+    # Железная кирка
     "iron_pickaxe": {
         "pattern": [
             ['iron_ingot', "iron_ingot", 'iron_ingot'],
@@ -224,7 +234,7 @@ CRAFTING_RECIPES = {
         "result_count": 1
     },
 
-# Деревянная лопата
+    # Деревянная лопата
     "wooden_shovel": {
         "pattern": [
             [None, "wooden_planks", None],
@@ -244,7 +254,7 @@ CRAFTING_RECIPES = {
         "result": "stone_shovel",
         "result_count": 1
     },
-# Железная лопата
+    # Железная лопата
     "iron_shovel": {
         "pattern": [
             [None, "iron_ingot", None],
@@ -275,7 +285,7 @@ CRAFTING_RECIPES = {
         "result_count": 1
     },
 
-# Слиток железа
+    # Слиток железа
     "iron_ingot": {
         "pattern": [
             ["iron2", None, None],
@@ -286,7 +296,7 @@ CRAFTING_RECIPES = {
         "result_count": 1
     },
 
-# Слиток золота
+    # Слиток золота
     "golden_ingot": {
         "pattern": [
             ["gold2", None, None],
@@ -297,7 +307,6 @@ CRAFTING_RECIPES = {
         "result_count": 1
     }
 }
-
 
 WEAPON = {
     "wooden_sword": {
@@ -314,72 +323,72 @@ WEAPON = {
     },
     "golden_sword": {
         "damage": 3,
-        "object":["monster"]
+        "object": ["monster"]
     },
-"diamond_sword": {
+    "diamond_sword": {
         "damage": 3.5,
         "object": ["monster"]
     },
-"wooden_axe": {
+    "wooden_axe": {
         "damage": 1.5,
         "object": ["wood", "wooden_planks"]
     },
-"stone_axe": {
+    "stone_axe": {
         "damage": 2,
         "object": ["wood", "wooden_planks"]
     },
-"iron_axe": {
+    "iron_axe": {
         "damage": 3,
         "object": ["wood", "wooden_planks"]
     },
-"golden_axe": {
+    "golden_axe": {
         "damage": 4,
         "object": ["wood", "wooden_planks"]
     },
-"diamond_axe": {
+    "diamond_axe": {
         "damage": 6,
         "object": ["wood", "wooden_planks"]
     },
-"wooden_pickaxe": {
+    "wooden_pickaxe": {
         "damage": 1.5,
         "object": ["stone", "coal", "oven", "oven2", "stone_bricks"]
     },
-"stone_pickaxe": {
+    "stone_pickaxe": {
         "damage": 2,
         "object": ["stone", "coal", "iron", "oven", "oven2", "stone_bricks"]
     },
-"iron_pickaxe": {
+    "iron_pickaxe": {
         "damage": 3,
         "object": ["stone", "coal", "iron", "gold", "diamonds", "oven", "oven2", "stone_bricks"]
     },
-"golden_pickaxe": {
+    "golden_pickaxe": {
         "damage": 4,
         "object": ["stone", "coal", "iron", "gold", "diamonds", "oven", "oven2", "stone_bricks"]
     },
-"diamond_pickaxe": {
+    "diamond_pickaxe": {
         "damage": 6,
         "object": ["stone", "coal", "iron", "gold", "diamonds", "oven", "oven2", "stone_bricks"]
     },
 
-"wooden_shovel": {
+    "wooden_shovel": {
         "damage": 1.5,
         "object": ["earth", 'grass']
     },
-"stone_shovel": {
+    "stone_shovel": {
         "damage": 2,
         "object": ["earth", 'grass']
     },
-"iron_shovel": {
+    "iron_shovel": {
         "damage": 3,
         "object": ["earth", 'grass']
     },
-"golden_shovel": {
+    "golden_shovel": {
         "damage": 4,
         "object": ["earth", 'grass']
     },
-"diamond_shovel": {
+    "diamond_shovel": {
         "damage": 6,
         "object": ["earth", 'grass']
-}
+    }
 
 }
