@@ -1495,12 +1495,16 @@ class GameWindow(arcade.Window):
         spawn_y = max(0, min(self.world_height, spawn_y))
 
         # Создаем монстра
-        monster = Monster(spawn_x, spawn_y, speed=60, damage=10)
-        monster.setup_physics(self.sprite_lists['collisions'])
-        monster.scale = 0.32
-        monster.health = MONSTER_HEALTH
-        self.monster_list.append(monster)
-        return True
+        blocks_list = arcade.get_sprites_at_point((spawn_x, spawn_y), self.all_blocks)
+        if not blocks_list:
+            monster = Monster(spawn_x, spawn_y, speed=60, damage=10)
+            monster.setup_physics(self.sprite_lists['collisions'])
+            monster.scale = 0.32
+            monster.health = MONSTER_HEALTH
+            self.monster_list.append(monster)
+            return True
+        else:
+            return False
 
     def respawn_player(self):
         """Перерождение игрока после смерти"""

@@ -341,7 +341,6 @@ class MenuWindow(arcade.Window):
         self.manager.draw()  # Рисуй GUI поверх всего
 
 
-
 class PauseScreen:
     """Класс для экрана паузы"""
 
@@ -362,10 +361,15 @@ class PauseScreen:
         self.button_hover_color = (200, 200, 200)
         self.button_border_color = (79, 79, 79)
 
-        # Состояния кнопок (убрана craft_button_hovered)
+        # Состояния кнопок
         self.continue_button_hovered = False
         self.save_button_hovered = False
         self.exit_button_hovered = False
+        self.craft_button_hovered = False
+
+        self.background_texture = arcade.load_texture("menu/craft.jpg")
+        self.is_craft = False
+
 
     def show(self):
         """Показать экран паузы"""
@@ -377,6 +381,7 @@ class PauseScreen:
         self.continue_button_hovered = False
         self.save_button_hovered = False
         self.exit_button_hovered = False
+        self.craft_button_hovered = False
 
     def update_mouse_position(self, x, y):
         """Обновить позицию мыши для определения наведения на кнопки"""
@@ -390,11 +395,13 @@ class PauseScreen:
         # Позиции кнопок
         continue_y = center_y + 30
         save_y = center_y - 40
-        exit_y = center_y - 110  # Подняли exit выше, т.к. убрали инструкцию
+        craft_y = center_y - 110
+        exit_y = center_y - 180
 
         # Проверяем наведение на каждую кнопку
         self.continue_button_hovered = self._is_point_in_button(x, y, center_x, continue_y)
         self.save_button_hovered = self._is_point_in_button(x, y, center_x, save_y)
+        self.craft_button_hovered = self._is_point_in_button(x, y, center_x, craft_y)
         self.exit_button_hovered = self._is_point_in_button(x, y, center_x, exit_y)
 
     def _is_point_in_button(self, x, y, button_x, button_y):
@@ -417,7 +424,8 @@ class PauseScreen:
         # Позиции кнопок
         continue_y = center_y + 30
         save_y = center_y - 40
-        exit_y = center_y - 110  # Подняли exit выше
+        craft_y = center_y - 110
+        exit_y = center_y - 180
 
         # Проверяем клик по каждой кнопке
         if self._is_point_in_button(x, y, center_x, continue_y):
@@ -426,6 +434,11 @@ class PauseScreen:
 
         if self._is_point_in_button(x, y, center_x, save_y):
             self.window.save_game()
+            return True
+
+        if self._is_point_in_button(x, y, center_x, craft_y):
+            self.is_craft = True
+            self.draw()
             return True
 
         if self._is_point_in_button(x, y, center_x, exit_y):
@@ -441,9 +454,14 @@ class PauseScreen:
             return False
 
         if key == arcade.key.ESCAPE:
-            # ESC для продолжения игры
-            self.hide()
-            return True
+            # Если открыта инструкция крафта
+            if self.is_craft:
+                self.is_craft = False
+                self.draw()
+            else:
+                # ESC для продолжения игры
+                self.hide()
+                return True
 
         return False
 
@@ -491,9 +509,16 @@ class PauseScreen:
             self.save_button_hovered
         )
 
+        # Кнопка "Инструкция по крафту"
+        self._draw_button(
+            center_x, center_y - 110,
+            "Инструкция по крафту",
+            self.craft_button_hovered
+        )
+
         # Кнопка "Выйти"
         self._draw_button(
-            center_x, center_y - 110,  # Сдвинули выше
+            center_x, center_y - 180,
             "Выйти",
             self.exit_button_hovered
         )
@@ -508,6 +533,12 @@ class PauseScreen:
             anchor_x="center"
         )
         help_text.draw()
+
+        if self.is_craft:
+            if self.background_texture:
+                arcade.draw_texture_rect(
+                    self.background_texture,
+                    arcade.LBWH(100, 0, SCREEN_WIDTH - 200, SCREEN_HEIGHT))
 
     def _draw_button(self, x, y, text, is_hovered):
         """Рисует одну кнопку"""
