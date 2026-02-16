@@ -647,11 +647,12 @@ class Monster(arcade.Sprite):
         self.attack_delay = 1
         self.physics_engine = None
         self.current_side = Side.RIGHT
-        self.is_damage = False
         self.health = MONSTER_HEALTH  # Здоровье монстра
         self.max_health = MONSTER_HEALTH  # Максимальное здоровье
         self.walk_player = None
+        self.strikes_player = None
         self.walk_sound = arcade.load_sound('music/zombies.wav')
+        self.strikes_sound = arcade.load_sound('music/strikes.wav')
 
     def setup_physics(self, collision_list):
         """Настройка физического движка для монстра"""
@@ -704,10 +705,13 @@ class Monster(arcade.Sprite):
             current_time = time.time()
             if current_time - self.last_attack_time >= self.attack_delay:
                 player.health -= self.damage
-                self.is_damage = True
                 self.last_attack_time = current_time
+                self.strikes_player = arcade.play_sound(
+                    self.strikes_sound)
         else:
-            self.is_damage = False
+            if self.strikes_player:
+                arcade.stop_sound(self.strikes_player)
+                self.strikes_player = None
 
     def update_animation(self, delta_time: float = 1 / 60):
         """Обновление анимации монстра"""
@@ -770,8 +774,7 @@ class GameWindow(arcade.Window):
         self.day_time = 0.0
         self.sun_list = arcade.SpriteList()
 
-
-    # Оригинальные блоки карты (для сброса)
+        # Оригинальные блоки карты (для сброса)
         self.original_blocks = {}
 
         self.last_spawn_time = time.time()
@@ -814,7 +817,6 @@ class GameWindow(arcade.Window):
         self.craft_sound = arcade.load_sound("music/stone.wav")
         self.background_sound = arcade.load_sound('music/background_music.wav')
         self.walk_sound = arcade.load_sound('music/shagi.wav')
-        self.strikes_sound = arcade.load_sound('music/strikes.wav')
         self.hit_sound = arcade.load_sound('music/hit.wav')
 
         # Запуск фоновой музыки
@@ -879,7 +881,6 @@ class GameWindow(arcade.Window):
 
         self.gui_camera.use()
         self.draw_lighting()
-
 
         # Отрисовка шкалы здоровья игрока
         if self.player and self.player.is_alive:
@@ -1009,28 +1010,30 @@ class GameWindow(arcade.Window):
 
         # Спавн монстров
         current_time = time.time()
+        is_night = math.sin(self.day_time) < 0  # Ночь, когда синус отрицательный
         if (self.player and self.player.is_alive and
                 len(self.monster_list) < MAX_MONSTERS and
-                current_time - self.last_spawn_time > MONSTER_SPAWN_DELAY):
+                current_time - self.last_spawn_time > MONSTER_SPAWN_DELAY and
+                is_night):  # Спавним только ночью
             self.spawn_monster()
             self.last_spawn_time = current_time
 
         # Обновление монстров
         self.monster_list.update_animation(dt)
+
         for monster in self.monster_list:
             monster.update(dt, self.player)
-            if monster.is_damage:
-                if not self.strikes_player:
-                    self.strikes_player = arcade.play_sound(
-                        self.strikes_sound, loop=True, volume=self.volume * 1.5)
-            if not monster.is_damage and self.strikes_player:
-                arcade.stop_sound(self.strikes_player)
-                self.strikes_player = None
+            # Монстры горят и умирают днём
+            if not is_night:  # Если день
+                # Постепенно уменьшаем здоровье монстра на солнце
+                monster.health -= dt * 10  # Уменьшаем здоровье со скоростью 10 в секунду
+                if monster.health <= 0:
+                    if monster.strikes_player:
+                        arcade.stop_sound(monster.strikes_player)
+                    monster.remove_from_sprite_lists()
             if max(abs(monster.center_x - self.player.center_x),
                    abs(monster.center_y - self.player.center_y)) > 1000:
                 monster.remove_from_sprite_lists()
-
-
 
     def save_game(self):
         """Сохранение полного состояния игры в JSON файл"""
@@ -1482,6 +1485,24 @@ class GameWindow(arcade.Window):
         if player_rect.left <= grid_x <= player_rect.right and player_rect.bottom <= grid_y <= player_rect.top:
             return False
 
+        # Проверяем, есть ли рядом с позицией установки какой-либо блок
+        has_neighbor = False
+        neighbor_positions = [
+            (grid_x + actual_tile_size, grid_y),  # справа
+            (grid_x - actual_tile_size, grid_y),  # слева
+            (grid_x, grid_y + actual_tile_size),  # сверху
+            (grid_x, grid_y - actual_tile_size),  # снизу
+        ]
+
+        for neighbor_x, neighbor_y in neighbor_positions:
+            neighbor_blocks = arcade.get_sprites_at_point((neighbor_x, neighbor_y), self.all_blocks)
+            if neighbor_blocks:
+                has_neighbor = True
+                break
+        # Если нет соседнего блока не даем ставить
+        if not has_neighbor:
+            return False
+
         # Создание блока
         block = arcade.Sprite(
             f"minecraft_blocks/{block_name}.webp",
@@ -1492,7 +1513,7 @@ class GameWindow(arcade.Window):
 
         # Создание коллизии для твердых блоков
         if block_name in ['earth', 'stone', 'wood', 'foliage', 'wooden_planks',
-                          'oven', 'oven2', 'stone_bricks', 'glass', 'grass', 'stone2']:
+                          'oven', 'oven2', 'stone_bricks', 'glass', 'grass', 'stone2', 'workbench']:
             collision_block = arcade.Sprite(
                 f"minecraft_blocks/Border_29_EE1.webp",
                 scale=TILE_SCALING
@@ -1570,16 +1591,19 @@ class GameWindow(arcade.Window):
         )
 
     def stop_all_music(self):
-        arcade.stop_sound(self.background_music_player)
-        for player in [self.walk_player, self.strikes_player]:
-            if player:
-                arcade.stop_sound(player)
-            player = None
+        if self.background_music_player:
+            arcade.stop_sound(self.background_music_player)
+        if self.walk_player:
+            arcade.stop_sound(self.walk_player)
+        if self.strikes_player:
+            arcade.stop_sound(self.strikes_player)
+        self.walk_player = None
+        self.strikes_player = None
+        self.background_music_player = None
         for monster in self.monster_list:
             if monster.walk_player:
                 arcade.stop_sound(monster.walk_player)
                 monster.walk_player = None
-
 
     def on_close(self):
         """Обработка закрытия игрового окна"""

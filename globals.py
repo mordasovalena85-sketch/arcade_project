@@ -15,7 +15,8 @@ BLOCKS_DATA = {
     'oven2': [4, 'stone', 8],
     'stone_bricks': [4, 'stone', 8],
     'glass': [0.2, 'stone', 25],
-    'torch': [0.1, 'wood', 25]
+    'torch': [0.1, 'wood', 25],
+    'workbench': [3.5, 'wood', 9]
 
 }
 
@@ -24,8 +25,8 @@ CRAFTING_RECIPES = {
     # Верстак
     "workbench": {
         "pattern": [
-            ["wood", "wood", None],
-            ["wood", "wood", None],
+            ["wooden_planks", "wooden_planks", None],
+            ["wooden_planks", "wooden_planks", None],
             [None, None, None]
         ],
         "result": "workbench",

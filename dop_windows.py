@@ -6,8 +6,10 @@ from arcade import Text
 
 from arcade.gui import (UIManager, UIAnchorLayout, UIBoxLayout,
                         UITextureButton, UILabel, UIDropdown, UISlider)
+
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 600
+
 
 class RespawnScreen:
     """Класс для экрана респавна в конце игры"""
@@ -195,7 +197,6 @@ class MenuWindow(arcade.Window):
 
         self.skin = 'Stive'
 
-
     def setup_widgets(self):
 
         overlay_texture = arcade.load_texture("menu/title.png")
@@ -248,7 +249,7 @@ class MenuWindow(arcade.Window):
         }
 
         self.dropdown = UIDropdown(options=["Stive", "Alex"], width=200,
-                              dropdown_style=style_dict, active_style=style_dict, primary_style=style_dict,
+                                   dropdown_style=style_dict, active_style=style_dict, primary_style=style_dict,
                                    default="Stive")
 
         self.dropdown.on_change = self.choose_skin
@@ -293,16 +294,15 @@ class MenuWindow(arcade.Window):
             arcade.stop_sound(self.music_player)
         # Запускаем с текущей громкостью
         self.music_player = arcade.play_sound(
-                self.music_sound,
-                volume=volume,
-                loop=True  # Постоянный повтор
-            )
+            self.music_sound,
+            volume=volume,
+            loop=True  # Постоянный повтор
+        )
 
     def set_volume(self, event=None):
         """Устанавливает громкость и перезапускает музыку"""
         # Перезапускаем с новой громкостью
         self.play(event.new_value)
-
 
     def choose_skin(self, event=None):
         selected_option = self.dropdown.value
@@ -326,8 +326,6 @@ class MenuWindow(arcade.Window):
         self.game_window = GameWindow(self.skin, self.slider.value)
         self.game_window.setup()
         arcade.run()  # Запускаем игровое окно
-
-
 
     def on_draw(self):
         self.clear()
@@ -369,7 +367,6 @@ class PauseScreen:
 
         self.background_texture = arcade.load_texture("menu/craft.jpg")
         self.is_craft = False
-
 
     def show(self):
         """Показать экран паузы"""
@@ -538,7 +535,7 @@ class PauseScreen:
             if self.background_texture:
                 arcade.draw_texture_rect(
                     self.background_texture,
-                    arcade.LBWH(100, 0, SCREEN_WIDTH - 200, SCREEN_HEIGHT))
+                    arcade.LBWH(125, 0, SCREEN_WIDTH - 250, SCREEN_HEIGHT))
 
     def _draw_button(self, x, y, text, is_hovered):
         """Рисует одну кнопку"""
