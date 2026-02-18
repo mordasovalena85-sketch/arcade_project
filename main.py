@@ -11,7 +11,7 @@ from arcade import Text
 
 # Локальные импорты
 from globals import BLOCKS_DATA, CRAFTING_RECIPES, WEAPON
-from dop_windows import PauseScreen, RespawnScreen, MenuWindow
+from additional_windows import PauseScreen, RespawnScreen, MenuWindow
 
 # Константы экрана
 SCREEN_WIDTH = 600
