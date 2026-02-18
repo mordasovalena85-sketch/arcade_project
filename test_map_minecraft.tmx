@@ -46,7 +46,7 @@
    eJzt1FsOhCAMAEBPwv2Pub+GdF2FUrJxJiG+YguteBwAAAAAAFRpp1Gdd5dda76jBaMyX7Xd+X+p7EeUazbfk3gr8mdrwTF7jt/qMJvracyV30OGc6z+PFO/9oyajMa8emfEin0e3c8UrXu2J7P9yOjJ6r2+SlU/+md35jFqxf/33131uTJ3dP1Wu+vw9voDAAAAAAAAAAAAsM8HlJMVGQ==
   </data>
  </layer>
- <layer id="17" name="collisions" width="100" height="50">
+ <layer id="17" name="collisions" width="100" height="50" visible="0">
   <data encoding="base64" compression="zlib">
    eJztmjEWgzAMxXIR7n9N9g4QKI4VW3pPU5ffiNHHGONQlMLAHizswcIeLOzBwh4s7MHCHizswcIeLOzBwh4s7MHCHizswcIeLOzBwh4s7MHCHizswaJyjx3/V6UeFe5ndtv7C/Wm6e2uHXtQ782+2PPVPd2qb5GwMfK9onpE9KHsi9ywqgfdWaI3ZL8DwVmyd3bRFixnWtiE0ePq9+zdVb167zuyt1f0X7L3d/Ap2Xs7+ITsrV2cJXtnd+2hqqqqqqqqqrrOE2eaEuI=
   </data>

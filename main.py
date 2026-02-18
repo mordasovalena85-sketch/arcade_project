@@ -1030,6 +1030,9 @@ class GameWindow(arcade.Window):
                 if monster.health <= 0:
                     if monster.strikes_player:
                         arcade.stop_sound(monster.strikes_player)
+                    if monster.walk_player:
+                        arcade.stop_sound(monster.walk_player)
+                        monster.walk_player = None
                     monster.remove_from_sprite_lists()
             if max(abs(monster.center_x - self.player.center_x),
                    abs(monster.center_y - self.player.center_y)) > 1000:
